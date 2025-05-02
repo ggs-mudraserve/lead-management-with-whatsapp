@@ -21,8 +21,20 @@ import {
   Chip,
   Snackbar,
   Alert as MuiAlert,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  Tooltip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import KeyIcon from '@mui/icons-material/Key';
 import { Database } from '@/lib/supabase/database.types';
 import { CreateUserDialog, CreateUserFormData } from './_components/create-user-dialog';
 
@@ -54,8 +66,13 @@ export default function UserManagementPage() {
   const { profile, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
-  // State for dialog
+  // State for dialogs
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{
+    open: boolean;
+    userId: string;
+    email: string | null;
+  }>({ open: false, userId: '', email: null });
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   const { data: users, isLoading: usersLoading, error, isError } = useQuery<AdminUserView[], Error>({
@@ -64,53 +81,41 @@ export default function UserManagementPage() {
     enabled: !!profile && profile.role === 'admin', // Only fetch if user is admin
   });
 
-  // --- Create User Mutation --- 
+  // --- Create User Mutation ---
   const createUserMutation = useMutation({
     mutationFn: async (formData: CreateUserFormData) => {
       if (!formData.password) {
         throw new Error("Password is required for creation.");
       }
-      
-      // --- SECURITY WARNING --- 
-      // Calling admin methods directly from the client is insecure.
-      // This should ideally be done within a Supabase Edge Function.
-      // Example using admin.createUser (requires secure setup or Edge Function):
-      
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: formData.password,
-        email_confirm: true, // Or false if you don't require email confirmation initially
-        // user_metadata: { name: `${formData.first_name} ${formData.last_name}` } // Optional
+
+      console.log('Client: Sending user creation request to API');
+
+      // Call our server-side API endpoint to create the user
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: formData.role,
+        }),
       });
 
-      if (authError || !authData.user) {
-        console.error("Auth User Creation Error:", authError);
-        throw new Error(authError?.message || 'Failed to create user authentication entry.');
+      // Parse the response
+      const result = await response.json();
+
+      // Handle errors
+      if (!response.ok) {
+        console.error("User Creation API Error:", result.error);
+        throw new Error(result.error || 'Failed to create user');
       }
 
-      const userId = authData.user.id;
-
-      // Task 12.4: Immediately update the profile table
-      const { error: profileError } = await supabase
-        .from('profile')
-        .update({ 
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            role: formData.role,
-            // email is automatically set by trigger/auth
-            // is_active defaults to true
-         })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.error("Profile Update Error:", profileError);
-        // Attempt to clean up auth user if profile update fails?
-        // This part needs careful consideration based on desired transactional behavior.
-        // await supabase.auth.admin.deleteUser(userId); // Risky, could fail.
-        throw new Error(profileError.message || 'Failed to update user profile after creation.');
-      }
-
-      return { userId }; // Return success indicator
+      console.log('Client: User created successfully', result);
+      return { userId: result.userId }; // Return success indicator with the user ID
     },
     onSuccess: () => {
       setSnackbar({ open: true, message: 'User created successfully!', severity: 'success' });
@@ -123,6 +128,73 @@ export default function UserManagementPage() {
     },
   });
   // --- End Create User Mutation ---
+
+  // --- Toggle User Status Mutation ---
+  const toggleUserStatusMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('profile')
+        .update({ is_active: isActive })
+        .eq('id', userId);
+
+      if (error) {
+        console.error("Error updating user status:", error);
+        throw new Error(error.message || 'Failed to update user status.');
+      }
+
+      return { userId, isActive };
+    },
+    onSuccess: (data) => {
+      const statusText = data.isActive ? 'activated' : 'deactivated';
+      setSnackbar({
+        open: true,
+        message: `User ${statusText} successfully!`,
+        severity: 'success'
+      });
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); // Refresh user list
+    },
+    onError: (error: Error) => {
+      setSnackbar({
+        open: true,
+        message: `Failed to update user status: ${error.message}`,
+        severity: 'error'
+      });
+    },
+  });
+  // --- End Toggle User Status Mutation ---
+
+  // --- Reset Password Mutation ---
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const siteUrl = window.location.origin;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${siteUrl}/login`,
+      });
+
+      if (error) {
+        console.error("Error sending password reset email:", error);
+        throw new Error(error.message || 'Failed to send password reset email.');
+      }
+
+      return { email };
+    },
+    onSuccess: (data) => {
+      setSnackbar({
+        open: true,
+        message: `Password reset link sent to ${data.email}`,
+        severity: 'success'
+      });
+      setResetPasswordDialog(prev => ({ ...prev, open: false }));
+    },
+    onError: (error: Error) => {
+      setSnackbar({
+        open: true,
+        message: `Failed to send password reset: ${error.message}`,
+        severity: 'error'
+      });
+    },
+  });
+  // --- End Reset Password Mutation ---
 
   const isLoading = authLoading || usersLoading;
 
@@ -152,6 +224,40 @@ export default function UserManagementPage() {
        return;
      }
      setSnackbar({ ...snackbar, open: false });
+   };
+
+   const handleToggleUserStatus = (userId: string, currentStatus: boolean | null) => {
+     // Use the current status (or default to true if null) and toggle it
+     const newStatus = !(currentStatus ?? true);
+     toggleUserStatusMutation.mutate({ userId, isActive: newStatus });
+   };
+
+   const handleOpenResetPasswordDialog = (userId: string, email: string | null) => {
+     if (!email) {
+       setSnackbar({
+         open: true,
+         message: 'User has no email address to send reset link',
+         severity: 'error'
+       });
+       return;
+     }
+     setResetPasswordDialog({
+       open: true,
+       userId,
+       email
+     });
+   };
+
+   const handleCloseResetPasswordDialog = () => {
+     if (!resetPasswordMutation.isPending) {
+       setResetPasswordDialog(prev => ({ ...prev, open: false }));
+     }
+   };
+
+   const handleResetPassword = () => {
+     if (resetPasswordDialog.email) {
+       resetPasswordMutation.mutate(resetPasswordDialog.email);
+     }
    };
 
   return (
@@ -185,7 +291,8 @@ export default function UserManagementPage() {
                 <TableCell>Email</TableCell>
                 <TableCell>Role</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell align="center">Actions</TableCell> {/* Placeholder for Edit/Delete */} 
+                <TableCell align="center">Active Status Control</TableCell>
+                <TableCell align="center">Reset Password</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -208,16 +315,50 @@ export default function UserManagementPage() {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      {/* TODO: Add Edit button (Task 12.5) */}
-                      {/* TODO: Add Change Password button (Task 12.6) */}
-                      {/* Placeholder */}
-                      -
+                      <FormControl component="fieldset">
+                        <RadioGroup
+                          row
+                          value={user.is_active ? 'active' : 'inactive'}
+                          onChange={() => handleToggleUserStatus(user.id, user.is_active)}
+                        >
+                          <Tooltip title="Set user as active">
+                            <FormControlLabel
+                              value="active"
+                              control={<Radio size="small" />}
+                              label="Active"
+                              disabled={toggleUserStatusMutation.isPending}
+                            />
+                          </Tooltip>
+                          <Tooltip title="Set user as inactive">
+                            <FormControlLabel
+                              value="inactive"
+                              control={<Radio size="small" />}
+                              label="Inactive"
+                              disabled={toggleUserStatusMutation.isPending}
+                            />
+                          </Tooltip>
+                        </RadioGroup>
+                      </FormControl>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Send password reset link">
+                        <span> {/* Wrapper to handle disabled state */}
+                          <IconButton
+                            color="primary"
+                            onClick={() => handleOpenResetPasswordDialog(user.id, user.email)}
+                            disabled={!user.email || resetPasswordMutation.isPending}
+                            size="small"
+                          >
+                            <KeyIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">No users found.</TableCell>
+                  <TableCell colSpan={6} align="center">No users found.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -234,6 +375,49 @@ export default function UserManagementPage() {
       />
       {/* --- End Render Dialog --- */}
 
+      {/* Reset Password Confirmation Dialog */}
+      <Dialog
+        open={resetPasswordDialog.open}
+        onClose={handleCloseResetPasswordDialog}
+        aria-labelledby="reset-password-dialog-title"
+      >
+        <DialogTitle id="reset-password-dialog-title">Send Password Reset Link</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to send a password reset link to {resetPasswordDialog.email}?
+            The user will receive an email with instructions to reset their password.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ position: 'relative', p: 2 }}>
+          <Button
+            onClick={handleCloseResetPasswordDialog}
+            disabled={resetPasswordMutation.isPending}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleResetPassword}
+            variant="contained"
+            color="primary"
+            disabled={resetPasswordMutation.isPending}
+          >
+            Send Reset Link
+          </Button>
+          {resetPasswordMutation.isPending && (
+            <CircularProgress
+              size={24}
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                right: '24px',
+                marginTop: '-12px',
+              }}
+            />
+          )}
+        </DialogActions>
+      </Dialog>
+
        {/* Snackbar for feedback */}
        <Snackbar
          open={snackbar.open}
@@ -248,4 +432,4 @@ export default function UserManagementPage() {
 
     </Container>
   );
-} 
+}
