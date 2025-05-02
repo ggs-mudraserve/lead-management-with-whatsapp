@@ -4,20 +4,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Typography,
-  IconButton,
-  Avatar,
-  Divider,
   CircularProgress,
   Alert,
-  Button,
+  IconButton,
+  Tooltip,
+  Avatar,
+  Divider,
   Menu,
   MenuItem,
-  Tooltip,
-  Chip
+  Chip,
+  Button,
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import PersonIcon from '@mui/icons-material/Person';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMessages, fetchLeadInfo, LeadInfo } from '@/lib/supabase/queries/whatsapp';
@@ -28,17 +29,6 @@ import { subscribeToSession } from '@/lib/supabase/realtime';
 interface ChatWindowProps {
   sessionId: string;
   isAdmin: boolean;
-}
-
-interface Message {
-  id: number;
-  session_id: string;
-  message: {
-    type: 'human' | 'ai';
-    content: string;
-    additional_kwargs?: Record<string, any>;
-  };
-  timestamp: string;
 }
 
 // Helper function to format phone numbers for display
@@ -57,6 +47,48 @@ const formatPhoneNumber = (phoneNumber: string): string => {
   return phoneNumber; // Return original if not in expected format
 };
 
+// Helper function to check if a file is an image based on file type or name
+const isImageFile = (fileType?: string, fileName?: string): boolean => {
+  if (fileType && fileType.startsWith('image/')) {
+    return true;
+  }
+
+  if (fileName) {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '');
+  }
+
+  return false;
+};
+
+// Helper function to download a file
+const downloadFile = (url?: string, fileName?: string) => {
+  if (!url || typeof window === 'undefined') return;
+
+  try {
+    // Create a direct download link to our server endpoint
+    const downloadUrl = `/api/whatsapp/download-file?url=${encodeURIComponent(url)}&fileName=${encodeURIComponent(fileName || 'download')}`;
+
+    // Create an invisible iframe to trigger the download
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = downloadUrl;
+    document.body.appendChild(iframe);
+
+    // Remove the iframe after a delay
+    setTimeout(() => {
+      if (iframe && iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+    }, 5000);
+
+    console.log('Download initiated for:', fileName);
+  } catch (error) {
+    console.error('Error initiating download:', error);
+    alert('Could not download the file. Please try again or right-click on the attachment and select "Save link as..."');
+  }
+};
+
 export default function ChatWindow({ sessionId, isAdmin }: ChatWindowProps) {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -69,20 +101,16 @@ export default function ChatWindow({ sessionId, isAdmin }: ChatWindowProps) {
     data: messages,
     isLoading: isLoadingMessages,
     error: messagesError,
-    refetch: refetchMessages
   } = useQuery({
     queryKey: ['whatsappMessages', sessionId],
     queryFn: () => fetchMessages(sessionId),
     enabled: !!sessionId,
-    // No refetchInterval needed as we're using realtime subscriptions
   });
 
   // Fetch lead information for this conversation
   const {
     data: leadInfo,
     isLoading: isLoadingLeadInfo,
-    error: leadInfoError,
-    refetch: refetchLeadInfo
   } = useQuery<LeadInfo | null>({
     queryKey: ['whatsappLeadInfo', sessionId],
     queryFn: () => fetchLeadInfo(sessionId),
@@ -203,31 +231,15 @@ export default function ChatWindow({ sessionId, isAdmin }: ChatWindowProps) {
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-              {/* Show first digit of phone number without country code */}
               {sessionId.startsWith('91')
                 ? sessionId.substring(2, 3)
                 : sessionId.substring(0, 1)}
             </Avatar>
             <Typography variant="h6">
-              {/* Format phone number for display */}
               {formatPhoneNumber(sessionId)}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Refresh">
-              <IconButton
-                onClick={() => {
-                  console.log('Manually refreshing data');
-                  refetchMessages();
-                  refetchLeadInfo();
-                }}
-                size="small"
-                sx={{ mr: 1 }}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-
             {isAdmin && (
               <>
                 <IconButton onClick={handleMenuClick}>
@@ -275,35 +287,137 @@ export default function ChatWindow({ sessionId, isAdmin }: ChatWindowProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: 1,
-        bgcolor: '#e5ded8' // WhatsApp chat background
+        bgcolor: '#e5ded8'
       }}>
-        {messages && messages.length > 0 ? (
-          messages.map((message: Message) => (
-            <Box
-              key={message.id}
-              sx={{
-                alignSelf: message.message.type === 'human' ? 'flex-start' : 'flex-end',
-                maxWidth: '70%',
-                bgcolor: message.message.type === 'human' ? 'white' : '#dcf8c6',
-                p: 2,
-                borderRadius: 2,
-                boxShadow: 1
-              }}
-            >
-              <Typography variant="body1">{message.message.content}</Typography>
-              <Typography
-                variant="caption"
-                color="textSecondary"
-                sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}
-              >
-                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Typography>
-            </Box>
-          ))
-        ) : (
+        {!messages || messages.length === 0 ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <Typography color="textSecondary">No messages yet</Typography>
           </Box>
+        ) : (
+          <>
+            {messages.map((message: any) => {
+              // Check if message has an attachment
+              const hasAttachment =
+                message.message.attachment_url ||
+                message.message.file_name ||
+                (message.message.additional_kwargs?.attachment?.url);
+
+              // Get attachment URL from either direct property or nested in additional_kwargs
+              let attachmentUrl =
+                message.message.attachment_url ||
+                message.message.additional_kwargs?.attachment?.url;
+
+              // Make sure attachmentUrl is a string
+              if (attachmentUrl && typeof attachmentUrl === 'string') {
+                // Ensure URL is properly formatted
+                if (!attachmentUrl.startsWith('http')) {
+                  // If URL doesn't start with http, assume it's a relative path and prepend the base URL
+                  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                  attachmentUrl = `${origin}${attachmentUrl.startsWith('/') ? '' : '/'}${attachmentUrl}`;
+                }
+              } else {
+                // If no valid URL, set to undefined
+                attachmentUrl = undefined;
+              }
+
+              // Get file name from either direct property or nested in additional_kwargs
+              const fileName =
+                message.message.file_name ||
+                message.message.additional_kwargs?.attachment?.name ||
+                'attachment';
+
+              // Get file type from either direct property or nested in additional_kwargs
+              const fileType =
+                message.message.file_type ||
+                message.message.additional_kwargs?.attachment?.type;
+
+              // Check if the file is an image
+              const isImage = isImageFile(fileType, fileName);
+
+              return (
+                <Box
+                  key={message.id}
+                  sx={{
+                    alignSelf: message.message.type === 'human' ? 'flex-start' : 'flex-end',
+                    maxWidth: '70%',
+                    bgcolor: message.message.type === 'human' ? 'white' : '#dcf8c6',
+                    p: 2,
+                    borderRadius: 2,
+                    boxShadow: 1
+                  }}
+                >
+                  <Typography variant="body1">{message.message.content}</Typography>
+
+                  {/* Render attachment if present */}
+                  {hasAttachment && attachmentUrl ? (
+                    <>
+                      {/* Display image preview if it's an image file */}
+                      {isImage ? (
+                        <Box sx={{ mt: 1, mb: 1, maxWidth: '100%', borderRadius: 1, overflow: 'hidden' }}>
+                          <Box
+                            component="img"
+                            src={attachmentUrl}
+                            alt={fileName}
+                            sx={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                              display: 'block',
+                              cursor: 'pointer',
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              downloadFile(attachmentUrl, fileName);
+                            }}
+                          />
+                        </Box>
+                      ) : null}
+
+                      {/* Always show file info and download button */}
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1,
+                          bgcolor: 'rgba(0,0,0,0.05)',
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}
+                      >
+                        <AttachFileIcon fontSize="small" />
+                        <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {fileName}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<DownloadIcon fontSize="small" />}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              downloadFile(attachmentUrl, fileName);
+                            }}
+                            sx={{ fontSize: '0.75rem', py: 0.5 }}
+                          >
+                            Download
+                          </Button>
+                        </Box>
+                      </Box>
+                    </>
+                  ) : null}
+
+                  <Typography
+                    variant="caption"
+                    color="textSecondary"
+                    sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}
+                  >
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </>
         )}
         <div ref={messagesEndRef} />
       </Box>
