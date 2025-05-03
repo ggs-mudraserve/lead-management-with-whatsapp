@@ -29,6 +29,7 @@ import {
   FormGroup,
   FormControlLabel,
   Snackbar,
+  TablePagination,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import EditIcon from '@mui/icons-material/Edit';
@@ -77,7 +78,15 @@ interface FetchedLeadData {
 }
 */
 
-interface Filters { segments: string[]; ownerIds: string[]; teamIds: string[]; creationDateStart: Dayjs | null; creationDateEnd: Dayjs | null; }
+interface Filters {
+  segments: string[];
+  ownerIds: string[];
+  teamIds: string[];
+  creationDateStart: Dayjs | null;
+  creationDateEnd: Dayjs | null;
+  page: number;
+  rowsPerPage: number;
+}
 
 // --- Data Fetching Functions ---
 
@@ -102,7 +111,12 @@ const fetchAllMissedReasons = async (): Promise<MissedReason[]> => {
   return data as MissedReason[];
 };
 
-const fetchMissedOpportunities = async (filters: Filters): Promise<MissedOpportunityLead[]> => {
+interface PaginatedMissedOpportunitiesResponse {
+  data: MissedOpportunityLead[];
+  count: number;
+}
+
+const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMissedOpportunitiesResponse> => {
   let query = supabase
     .from('leads')
     .select(
@@ -119,9 +133,23 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<MissedOpportu
 
   console.log('[fetchMissedOpportunities] Executing Supabase query...');
 
+  // Get the total count first (without pagination)
+  const { count, error: countError } = await query;
+
+  if (countError) {
+    console.error('Error fetching leads count:', countError);
+    throw new Error('Failed to fetch leads count.');
+  }
+
+  // Apply pagination
+  const from = filters.page * filters.rowsPerPage;
+  const to = from + filters.rowsPerPage - 1;
+  query = query.range(from, to);
+
+  // Execute the query with pagination
   const { data, error } = await query;
 
-  console.log('[fetchMissedOpportunities] Raw data received (all leads):', data);
+  console.log(`[fetchMissedOpportunities] Raw data received (page ${filters.page}, rows ${filters.rowsPerPage}):`, data);
   console.log('[fetchMissedOpportunities] Error received:', error);
 
   if (error) {
@@ -131,11 +159,11 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<MissedOpportu
 
   if (!data) {
       console.warn('[fetchMissedOpportunities] No data received from Supabase.');
-      return []; // Return empty array if data is null/undefined
+      return { data: [], count: 0 }; // Return empty array if data is null/undefined
   }
 
   // Filter out leads that HAVE bank applications
-  const leadsWithoutApps = data.filter(lead => 
+  const leadsWithoutApps = data.filter(lead =>
       !lead.bank_application || lead.bank_application.length === 0
   );
   console.log('[fetchMissedOpportunities] Leads after filtering for no bank apps:', leadsWithoutApps);
@@ -164,7 +192,13 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<MissedOpportu
 
   console.log('[fetchMissedOpportunities] Final processed data:', processedData);
 
-  return processedData as MissedOpportunityLead[];
+  // Calculate the actual count after client-side filtering
+  const filteredCount = count || 0;
+
+  return {
+    data: processedData as MissedOpportunityLead[],
+    count: filteredCount
+  };
 };
 
 // --- Component Constants ---
@@ -178,12 +212,16 @@ export default function MissedOpportunitiesTable() {
   const { profile } = useAuth();
 
   // State
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filters, setFilters] = useState<Filters>({
     segments: [],
     ownerIds: [],
     teamIds: [],
     creationDateStart: null,
     creationDateEnd: null,
+    page: 0,
+    rowsPerPage: 10,
   });
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false, message: '', severity: 'success'
@@ -195,10 +233,13 @@ export default function MissedOpportunitiesTable() {
   const { data: allReasons, isLoading: isLoadingReasons } = useQuery<MissedReason[], Error>({
     queryKey: ['allMissedReasons'], queryFn: fetchAllMissedReasons
   });
-  const { data, isLoading, error, isError } = useQuery<MissedOpportunityLead[], Error>({
+  const { data: response, isLoading, error, isError } = useQuery<PaginatedMissedOpportunitiesResponse, Error>({
     queryKey: ['missedOpportunities', filters],
     queryFn: () => fetchMissedOpportunities(filters),
+    placeholderData: (previousData) => previousData,
   });
+
+  const data = response?.data ?? [];
 
   // Mutations
   const addReasonMutation = useMutation({
@@ -236,7 +277,9 @@ export default function MissedOpportunitiesTable() {
 
   // Handlers
   const handleFilterChange = (filterName: keyof Filters, value: string[] | Dayjs | null) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
+    // Reset to page 0 when filters change
+    setPage(0);
+    setFilters(prev => ({ ...prev, [filterName]: value, page: 0 }));
   };
 
   const handleReasonChange = (leadId: string, reasonId: string, isChecked: boolean) => {
@@ -250,6 +293,18 @@ export default function MissedOpportunitiesTable() {
   const handleCloseSnackbar = (_event?: React.SyntheticEvent | Event, reason?: string) => {
       if (reason === 'clickaway') return;
       setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+    setFilters(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
+    setPage(0); // Reset to first page
+    setFilters(prev => ({ ...prev, rowsPerPage: newRowsPerPage, page: 0 }));
   };
 
   // Helpers
@@ -278,34 +333,70 @@ export default function MissedOpportunitiesTable() {
   const canExport = profile && ['admin', 'backend'].includes(profile.role ?? '');
 
   // Export Handler (Client-side CSV)
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!data) return;
 
-    const headers = [
-      "Segment", "First Name", "Last Name", "Lead Owner", "Team",
-      "Lead Date", "Missed Reason(s)"
-    ];
-    const rows = data.map(row => [
-      `"${row.segment ?? ''}"`,
-      `"${row.first_name ?? ''}"`,
-      `"${row.last_name ?? ''}"`,
-      `"${ownerMap[row.owner_id ?? ''] ?? ''}"`,
-      `"${teamMap[row.team_id ?? ''] ?? ''}"`,
-      `"${formatDate(row.created_at)}"`,
-      `"${row.selected_reason_ids.map(id => reasonMap[id]).join('; ')}"`
-    ].join(','));
+    try {
+      // For export, we need to fetch all data without pagination
+      const exportFilters = {
+        ...filters,
+        page: 0,
+        rowsPerPage: 1000000 // A very large number to get all records
+      };
 
-    const csvContent = headers.join(',') + "\n" + rows.join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `missed_opportunities_${format(new Date(), 'yyyyMMdd')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    console.warn("Client-side export initiated. PRD recommends a backend function for large datasets.")
+      // Fetch all data for export
+      const allData = await fetchMissedOpportunities(exportFilters);
+
+      if (!allData.data || allData.data.length === 0) {
+        setSnackbar({
+          open: true,
+          message: 'No data to export.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const headers = [
+        "Segment", "First Name", "Last Name", "Lead Owner", "Team",
+        "Lead Date", "Missed Reason(s)"
+      ];
+
+      const rows = allData.data.map(row => [
+        `"${row.segment ?? ''}"`,
+        `"${row.first_name ?? ''}"`,
+        `"${row.last_name ?? ''}"`,
+        `"${ownerMap[row.owner_id ?? ''] ?? ''}"`,
+        `"${teamMap[row.team_id ?? ''] ?? ''}"`,
+        `"${formatDate(row.created_at)}"`,
+        `"${row.selected_reason_ids.map(id => reasonMap[id]).join('; ')}"`
+      ].join(','));
+
+      const csvContent = headers.join(',') + "\n" + rows.join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `missed_opportunities_${format(new Date(), 'yyyyMMdd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSnackbar({
+        open: true,
+        message: `Exported ${allData.data.length} records successfully.`,
+        severity: 'success'
+      });
+
+      console.warn("Client-side export initiated. PRD recommends a backend function for large datasets.");
+    } catch (error) {
+      console.error('Export error:', error);
+      setSnackbar({
+        open: true,
+        message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error'
+      });
+    }
   };
 
   // --- Render ---
@@ -355,18 +446,18 @@ export default function MissedOpportunitiesTable() {
            </Grid>
            {/* Creation/Assignment Date Filter */}
           <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1 }}>
-            <DatePicker 
-                label="Created After" 
-                value={filters.creationDateStart} 
-                onChange={(newValue) => handleFilterChange('creationDateStart', newValue ? dayjs(newValue) : null)} 
-                slotProps={{ textField: { size: 'small', fullWidth: true } }} 
+            <DatePicker
+                label="Created After"
+                value={filters.creationDateStart}
+                onChange={(newValue) => handleFilterChange('creationDateStart', newValue ? dayjs(newValue) : null)}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
             />
-            <DatePicker 
-                label="Created Before" 
-                value={filters.creationDateEnd} 
-                onChange={(newValue) => handleFilterChange('creationDateEnd', newValue ? dayjs(newValue) : null)} 
-                slotProps={{ textField: { size: 'small', fullWidth: true } }} 
-                minDate={filters.creationDateStart || undefined} 
+            <DatePicker
+                label="Created Before"
+                value={filters.creationDateEnd}
+                onChange={(newValue) => handleFilterChange('creationDateEnd', newValue ? dayjs(newValue) : null)}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                minDate={filters.creationDateStart || undefined}
             />
           </Grid>
         </Grid>
@@ -380,63 +471,82 @@ export default function MissedOpportunitiesTable() {
       ) : !data || data.length === 0 ? (
         <Typography sx={{ mt: 2 }}>No missed opportunity leads found matching filters.</Typography>
       ) : (
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="missed opportunity leads table">
-            <TableHead sx={{ backgroundColor: 'grey.200' }}>
-              <TableRow>
-                <TableCell>Segment</TableCell>
-                <TableCell>First Name</TableCell>
-                <TableCell>Last Name</TableCell>
-                <TableCell>Lead Owner</TableCell>
-                <TableCell>Team</TableCell>
-                <TableCell>Lead Date</TableCell>
-                <TableCell>Reason(s) Selection</TableCell>
-                <TableCell align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.map((row) => (
-                <TableRow key={row.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                   <TableCell>{row.segment ?? 'N/A'}</TableCell>
-                   <TableCell>{row.first_name ?? 'N/A'}</TableCell>
-                   <TableCell>{row.last_name ?? ''}</TableCell>
-                   <TableCell>{row.owner_first_name || row.owner_last_name ? `${row.owner_first_name ?? ''} ${row.owner_last_name ?? ''}`.trim() : 'N/A'}</TableCell>
-                   <TableCell>{row.team_name ?? 'N/A'}</TableCell>
-                   <TableCell>{formatDate(row.created_at)}</TableCell>
-                   <TableCell>
-                     <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-                       {(allReasons || []).map((reason) => (
-                         <FormControlLabel
-                           key={reason.id}
-                           control={
-                             <Checkbox
-                               size="small"
-                               checked={row.selected_reason_ids.includes(reason.id)}
-                               onChange={(e) => handleReasonChange(row.id, reason.id, e.target.checked)}
-                               disabled={addReasonMutation.isPending || deleteReasonMutation.isPending}
-                             />
-                           }
-                           label={reason.reason}
-                           sx={{ mr: 1, mb: 0 }}
-                         />
-                       ))}
-                       {(addReasonMutation.isPending || deleteReasonMutation.isPending) && <CircularProgress size={16} sx={{ ml: 1 }}/>}
-                     </FormGroup>
-                   </TableCell>
-                   <TableCell align="center">
-                     <Tooltip title="View/Edit Lead">
-                       <Link href={`/leads/${row.id}/edit`} passHref>
-                         <IconButton size="small" color="primary">
-                           <EditIcon fontSize="small" />
-                         </IconButton>
-                       </Link>
-                     </Tooltip>
-                   </TableCell>
+        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+          <TableContainer>
+            <Table sx={{ minWidth: 650 }} aria-label="missed opportunity leads table">
+              <TableHead sx={{ backgroundColor: 'grey.200' }}>
+                <TableRow>
+                  <TableCell>Segment</TableCell>
+                  <TableCell>First Name</TableCell>
+                  <TableCell>Last Name</TableCell>
+                  <TableCell>Lead Owner</TableCell>
+                  <TableCell>Team</TableCell>
+                  <TableCell>Lead Date</TableCell>
+                  <TableCell>Reason(s) Selection</TableCell>
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      No missed opportunity leads found matching filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.map((row) => (
+                    <TableRow key={row.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableCell>{row.segment ?? 'N/A'}</TableCell>
+                      <TableCell>{row.first_name ?? 'N/A'}</TableCell>
+                      <TableCell>{row.last_name ?? ''}</TableCell>
+                      <TableCell>{row.owner_first_name || row.owner_last_name ? `${row.owner_first_name ?? ''} ${row.owner_last_name ?? ''}`.trim() : 'N/A'}</TableCell>
+                      <TableCell>{row.team_name ?? 'N/A'}</TableCell>
+                      <TableCell>{formatDate(row.created_at)}</TableCell>
+                      <TableCell>
+                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+                          {(allReasons || []).map((reason) => (
+                            <FormControlLabel
+                              key={reason.id}
+                              control={
+                                <Checkbox
+                                  size="small"
+                                  checked={row.selected_reason_ids.includes(reason.id)}
+                                  onChange={(e) => handleReasonChange(row.id, reason.id, e.target.checked)}
+                                  disabled={addReasonMutation.isPending || deleteReasonMutation.isPending}
+                                />
+                              }
+                              label={reason.reason}
+                              sx={{ mr: 1, mb: 0 }}
+                            />
+                          ))}
+                          {(addReasonMutation.isPending || deleteReasonMutation.isPending) && <CircularProgress size={16} sx={{ ml: 1 }}/>}
+                        </FormGroup>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="View/Edit Lead">
+                          <Link href={`/leads/${row.id}/edit`} passHref>
+                            <IconButton size="small" color="primary">
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Link>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            component="div"
+            count={response?.count || 0}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        </Paper>
       )}
       <Snackbar
           open={snackbar.open}
@@ -450,4 +560,4 @@ export default function MissedOpportunitiesTable() {
       </Snackbar>
     </Box>
   );
-} 
+}
