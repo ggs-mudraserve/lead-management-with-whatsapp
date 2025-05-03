@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Button, Container, Stack, TextField, Typography, Alert } from '@mui/material';
 import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -12,13 +12,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check for error parameters in the URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const errorParam = searchParams.get('error');
+
+    if (errorParam === 'account_inactive') {
+      setError('Your account has been deactivated. Please contact your administrator.');
+    } else if (errorParam === 'account_verification_failed') {
+      setError('Error verifying account status. Please contact support.');
+    }
+  }, []);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // Step 1: Authenticate the user with Supabase Auth
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -26,13 +39,46 @@ export default function LoginPage() {
       if (signInError) {
         console.error('Supabase Sign In Error:', signInError);
         setError(signInError.message || 'An unexpected error occurred.');
-      } else {
+        return;
+      }
+
+      // Step 2: Check if the user's profile has is_active = false
+      if (authData.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profile')
+          .select('is_active')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          setError('Error verifying account status. Please contact support.');
+          // Sign out the user since we couldn't verify their status
+          await supabase.auth.signOut();
+          return;
+        }
+
+        // If the user is inactive, sign them out and show an error
+        if (profileData && profileData.is_active === false) {
+          console.log('Inactive user attempted to log in:', email);
+          await supabase.auth.signOut();
+          setError('Your account has been deactivated. Please contact your administrator.');
+          return;
+        }
+
+        // User is authenticated and active, proceed with login
         console.log('Login successful!');
         router.push('/all-applications');
       }
     } catch (err) {
       console.error('Unexpected error during login:', err);
       setError('An unexpected error occurred. Please try again.');
+      // Attempt to sign out in case of unexpected errors
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutErr) {
+        console.error('Error signing out after failed login:', signOutErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -98,4 +144,4 @@ export default function LoginPage() {
       </Box>
     </Container>
   );
-} 
+}

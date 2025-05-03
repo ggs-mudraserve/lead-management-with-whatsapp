@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../../../lib/supabase/client'; // Assuming this path is correct now
+import { checkFileExists } from '../../../../../lib/supabase/utils';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
@@ -39,6 +40,7 @@ interface LeadDocumentMetadata {
     file_name: string | null; // Filename might be null
     created_at: string;
     storage_object_path: string; // Added storage path
+    exists?: boolean; // Flag to indicate if file exists in storage
 }
 
 // Define document types as per PRD 3.3
@@ -65,6 +67,19 @@ async function fetchLeadDocumentsMetadata(leadId: string): Promise<LeadDocumentM
         throw new Error('Failed to fetch document metadata.');
     }
     return data || [];
+}
+
+// Function to delete document metadata from the database
+async function deleteDocumentMetadata(documentId: string): Promise<void> {
+    const { error } = await supabase
+        .from('lead_documents')
+        .delete()
+        .eq('id', documentId);
+
+    if (error) {
+        console.error('Error deleting document metadata:', error);
+        throw new Error(`Failed to delete document metadata: ${error.message}`);
+    }
 }
 
 interface DocumentTypeCardProps {
@@ -221,6 +236,13 @@ interface UploadAndRecordPayload {
     documentType: string;
     file: File;
 }
+
+interface BatchUploadPayload {
+    leadId: string;
+    documentType: string;
+    files: File[];
+}
+
 interface RpcResponse {
     success: boolean;
     error?: string;
@@ -283,6 +305,40 @@ async function uploadAndRecordDocument({ leadId, documentType, file }: UploadAnd
     }
     return rpcData;
 }
+
+// Function to handle batch upload of multiple files
+async function batchUploadAndRecordDocuments({ leadId, documentType, files }: BatchUploadPayload): Promise<RpcResponse[]> {
+    if (!files || files.length === 0) throw new Error("No files selected.");
+
+    const results: RpcResponse[] = [];
+    const maxSize = 15 * 1024 * 1024; // 15 MB
+
+    // Process each file sequentially to avoid overwhelming the server
+    for (const file of files) {
+        try {
+            // Check file size
+            if (file.size > maxSize) {
+                results.push({
+                    success: false,
+                    error: `File "${file.name}" exceeds the size limit of 15MB.`
+                });
+                continue;
+            }
+
+            // Upload and record the document
+            const result = await uploadAndRecordDocument({ leadId, documentType, file });
+            results.push(result);
+        } catch (error) {
+            console.error(`Error uploading file "${file.name}":`, error);
+            results.push({
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error during upload'
+            });
+        }
+    }
+
+    return results;
+}
 // --- Component --- //
 export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
     const queryClient = useQueryClient();
@@ -294,6 +350,8 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
     const [isDownloading, setIsDownloading] = useState(false); // State for download loading
     const [isZipping, setIsZipping] = useState(false); // State for zip download loading
     const [downloadError, setDownloadError] = useState<string | null>(null); // State for download error
+    const [validatedDocuments, setValidatedDocuments] = useState<LeadDocumentMetadata[]>([]);
+    const [isValidating, setIsValidating] = useState(false);
 
     // Fetch Query
     const { data: documentsMetadata, isLoading, error, isError } = useQuery<LeadDocumentMetadata[], Error>({
@@ -301,7 +359,83 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
         queryFn: () => fetchLeadDocumentsMetadata(leadId),
     });
 
-    // Upload Mutation
+    // Delete Document Metadata Mutation
+    const deleteMetadataMutation = useMutation({
+        mutationFn: deleteDocumentMetadata,
+        onSuccess: () => {
+            // No need to invalidate queries as we're handling the state locally
+            console.log('Document metadata deleted successfully');
+        },
+        onError: (error: Error) => {
+            console.error('Failed to delete document metadata:', error);
+            // We don't show this error to the user as it's a background cleanup operation
+        }
+    });
+
+    // Validate document existence in storage and clean up orphaned records
+    useEffect(() => {
+        const validateDocuments = async () => {
+            if (!documentsMetadata || documentsMetadata.length === 0) {
+                setValidatedDocuments([]);
+                return;
+            }
+
+            setIsValidating(true);
+
+            try {
+                const validatedDocs = await Promise.all(
+                    documentsMetadata.map(async (doc) => {
+                        const exists = await checkFileExists(supabase, BUCKET_NAME, doc.storage_object_path);
+                        return { ...doc, exists };
+                    })
+                );
+
+                // Filter out documents that don't exist in storage
+                const existingDocs = validatedDocs.filter(doc => doc.exists);
+
+                // If any documents were filtered out (don't exist in storage), log it and clean up the database
+                const missingDocs = validatedDocs.filter(doc => !doc.exists);
+                if (missingDocs.length > 0) {
+                    console.warn(`${missingDocs.length} documents were found in the database but not in storage:`,
+                        missingDocs.map(d => ({ id: d.id, path: d.storage_object_path })));
+
+                    // Clean up orphaned records from the database
+                    let cleanedUpCount = 0;
+                    for (const doc of missingDocs) {
+                        try {
+                            await deleteMetadataMutation.mutateAsync(doc.id);
+                            console.log(`Deleted orphaned document metadata for ID: ${doc.id}`);
+                            cleanedUpCount++;
+                        } catch (error) {
+                            console.error(`Failed to delete orphaned document metadata for ID: ${doc.id}`, error);
+                        }
+                    }
+
+                    // Notify the user that orphaned records were cleaned up
+                    if (cleanedUpCount > 0) {
+                        setSnackbarMessage(`${cleanedUpCount} document record(s) were cleaned up because the files were deleted from storage.`);
+                        setSnackbarSeverity('info');
+                        setSnackbarOpen(true);
+
+                        // Invalidate the query to refresh the document list
+                        queryClient.invalidateQueries({ queryKey: ['leadDocuments', leadId] });
+                    }
+                }
+
+                setValidatedDocuments(existingDocs);
+            } catch (err) {
+                console.error('Error validating document existence:', err);
+                // Fall back to showing all documents if validation fails
+                setValidatedDocuments(documentsMetadata);
+            } finally {
+                setIsValidating(false);
+            }
+        };
+
+        validateDocuments();
+    }, [documentsMetadata, queryClient, leadId]);
+
+    // Single file upload mutation
     const uploadMutation = useMutation<RpcResponse, Error, UploadAndRecordPayload>({
         mutationFn: uploadAndRecordDocument,
         onSuccess: () => {
@@ -315,24 +449,59 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
         },
-         onSettled: () => {
+        onSettled: () => {
             setSelectedDocType(null);
             if (fileInputRef.current) {
                 fileInputRef.current.value = ''; // Reset file input
             }
-         }
+        }
     });
 
-    // Process data for cards
+    // Batch upload mutation for multiple files
+    const batchUploadMutation = useMutation<RpcResponse[], Error, BatchUploadPayload>({
+        mutationFn: batchUploadAndRecordDocuments,
+        onSuccess: (results) => {
+            queryClient.invalidateQueries({ queryKey: ['leadDocuments', leadId] });
+
+            // Count successful and failed uploads
+            const successCount = results.filter(r => r.success).length;
+            const failedCount = results.length - successCount;
+
+            if (failedCount === 0) {
+                setSnackbarMessage(`Successfully uploaded ${successCount} document${successCount !== 1 ? 's' : ''}!`);
+                setSnackbarSeverity('success');
+            } else if (successCount === 0) {
+                setSnackbarMessage('Failed to upload any documents. Please try again.');
+                setSnackbarSeverity('error');
+            } else {
+                setSnackbarMessage(`Uploaded ${successCount} document${successCount !== 1 ? 's' : ''} successfully, ${failedCount} failed.`);
+                setSnackbarSeverity('warning');
+            }
+            setSnackbarOpen(true);
+        },
+        onError: (error) => {
+            setSnackbarMessage(`Upload failed: ${error.message}`);
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        },
+        onSettled: () => {
+            setSelectedDocType(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''; // Reset file input
+            }
+        }
+    });
+
+    // Process data for cards - use validatedDocuments instead of documentsMetadata
     const documentsByType = useMemo(() => {
         const map = new Map<string, LeadDocumentMetadata[]>();
-        documentsMetadata?.forEach(doc => {
+        validatedDocuments.forEach(doc => {
             const list = map.get(doc.document_type) || [];
             list.push(doc);
             map.set(doc.document_type, list);
         });
         return map;
-     }, [documentsMetadata]);
+     }, [validatedDocuments]);
 
     // Trigger hidden file input
     const handleUploadClick = (typeName: string) => {
@@ -342,9 +511,28 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
 
     // Handle file selection and trigger mutation
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file && selectedDocType) {
-             const maxSize = 15 * 1024 * 1024; // 15 MB
+        const files = event.target.files;
+        if (!files || files.length === 0 || !selectedDocType) {
+            setSelectedDocType(null);
+            return;
+        }
+
+        // Convert FileList to array
+        const fileArray = Array.from(files);
+
+        // Check if we're dealing with multiple files
+        if (fileArray.length > 1) {
+            // Use batch upload for multiple files
+            batchUploadMutation.mutate({
+                leadId,
+                documentType: selectedDocType,
+                files: fileArray
+            });
+        } else {
+            // Use single file upload for just one file
+            const file = fileArray[0];
+            const maxSize = 15 * 1024 * 1024; // 15 MB
+
             if (file.size > maxSize) {
                 setSnackbarMessage(`File size exceeds the limit of 15MB.`);
                 setSnackbarSeverity('error');
@@ -355,14 +543,17 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
                 setSelectedDocType(null);
                 return;
             }
-            uploadMutation.mutate({ leadId, documentType: selectedDocType, file });
-        } else {
-             setSelectedDocType(null);
+
+            uploadMutation.mutate({
+                leadId,
+                documentType: selectedDocType,
+                file
+            });
         }
     };
 
     // Handle Download Click
-    const handleDownload = async (path: string /*, fileName: string | null */) => { // Removed unused fileName
+    const handleDownload = async (path: string, fileName: string | null) => {
         setIsDownloading(true);
         setDownloadError(null);
         try {
@@ -380,19 +571,23 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             }
 
             if (data?.signedUrl) {
-                // Open in new tab
-                window.open(data.signedUrl, '_blank');
+                // Use our download API endpoint to force download instead of opening in a new tab
+                const downloadUrl = `/api/documents/download-file?url=${encodeURIComponent(data.signedUrl)}&fileName=${encodeURIComponent(fileName || 'download')}`;
 
-                 // Alternative: Trigger browser download with suggested filename
-                 // const link = document.createElement('a');
-                 // link.href = data.signedUrl;
-                 // if (fileName) {
-                 //     link.download = fileName;
-                 // }
-                 // document.body.appendChild(link);
-                 // link.click();
-                 // document.body.removeChild(link);
+                // Create an invisible iframe to trigger the download
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = downloadUrl;
+                document.body.appendChild(iframe);
 
+                // Remove the iframe after a delay
+                setTimeout(() => {
+                    if (iframe && iframe.parentNode) {
+                        iframe.parentNode.removeChild(iframe);
+                    }
+                }, 5000);
+
+                console.log('Download initiated for:', fileName);
             } else {
                 throw new Error('Could not retrieve download URL.');
             }
@@ -414,7 +609,7 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
 
     // Handle Download All Documents as Zip
     const handleDownloadAllDocs = async () => {
-        if (!documentsMetadata || documentsMetadata.length === 0) {
+        if (!validatedDocuments || validatedDocuments.length === 0) {
             setSnackbarMessage('No documents available to download.');
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
@@ -432,7 +627,7 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             const documentsByFolder = new Map<string, LeadDocumentMetadata[]>();
 
             // Group documents by type
-            documentsMetadata.forEach(doc => {
+            validatedDocuments.forEach(doc => {
                 const list = documentsByFolder.get(doc.document_type) || [];
                 list.push(doc);
                 documentsByFolder.set(doc.document_type, list);
@@ -521,12 +716,12 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
 
     return (
         <Paper elevation={2} sx={{ mt: 4, p: 3 }}>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} multiple />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" component="div">
                     Document Management
                 </Typography>
-                {documentsMetadata && documentsMetadata.length > 0 && (
+                {validatedDocuments && validatedDocuments.length > 0 && (
                     <Button
                         variant="outlined"
                         startIcon={isZipping ? <CircularProgress size={20} /> : <DownloadIcon />}
@@ -540,9 +735,14 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             </Box>
             <Divider sx={{ mb: 3 }} />
 
-            {isLoading && (
+            {(isLoading || isValidating) && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
                     <CircularProgress />
+                    {isValidating && !isLoading && (
+                        <Typography variant="body2" sx={{ ml: 2 }}>
+                            Verifying document availability...
+                        </Typography>
+                    )}
                 </Box>
             )}
             {isError && (
@@ -555,7 +755,7 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
                     Download Error: {downloadError}
                 </Alert>
             )}
-            {!isLoading && !isError && (
+            {!isLoading && !isValidating && !isError && (
                 <Grid container spacing={2}>
                     {DOCUMENT_TYPES.map((docType) => (
                         <Grid item xs={12} sm={6} md={4} key={docType}>
@@ -564,7 +764,8 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
                                 documents={documentsByType.get(docType) || []}
                                 onUploadClick={handleUploadClick}
                                 onDownloadClick={handleDownload}
-                                isUploading={uploadMutation.isPending && uploadMutation.variables?.documentType === docType}
+                                isUploading={(uploadMutation.isPending && uploadMutation.variables?.documentType === docType) ||
+                                              (batchUploadMutation.isPending && batchUploadMutation.variables?.documentType === docType)}
                                 isDownloading={isDownloading}
                              />
                         </Grid>

@@ -81,6 +81,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Check if the user is active
+  const { data: profile, error: profileError } = await supabase
+    .from('profile')
+    .select('is_active')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError) {
+    console.error(`Error fetching profile for user ${user.email}:`, profileError);
+    // If we can't determine if the user is active, sign them out for security
+    await supabase.auth.signOut();
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'account_verification_failed');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // If the user is inactive, sign them out and redirect to login with error
+  if (!profile || profile.is_active === false) {
+    console.warn(`Inactive user ${user.email} attempted to access ${requestedPath}`);
+    await supabase.auth.signOut();
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'account_inactive');
+    return NextResponse.redirect(loginUrl);
+  }
+
   // --- Role-based access control for /admin routes ---
   // This check should happen AFTER confirming the user is logged in
   if (requestedPath.startsWith('/admin')) {
@@ -119,4 +144,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|api/|auth/).*)',
   ],
-}; 
+};

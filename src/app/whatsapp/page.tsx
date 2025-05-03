@@ -109,7 +109,6 @@ export default function WhatsAppPage() {
             conversations={conversations || []}
             selectedConversation={selectedConversation}
             onSelectConversation={setSelectedConversation}
-            onRefresh={refetchConversations}
           />
         )}
       </Box>

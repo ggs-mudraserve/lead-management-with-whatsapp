@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendWhatsAppTextMessage } from '@/lib/whatsapp/server-api';
+import { sendWhatsAppDocument } from '@/lib/whatsapp/server-api';
 
 /**
  * POST handler for sending a WhatsApp document message
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     // Parse the request body
     const body = await request.json();
     const { phoneNumber, documentUrl, caption, filename } = body;
-    
+
     // Validate required parameters
     if (!phoneNumber || !documentUrl) {
       return NextResponse.json(
@@ -18,21 +18,24 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Format the phone number if needed (ensure it has 91 prefix)
-    const formattedPhoneNumber = phoneNumber.startsWith('+') 
-      ? phoneNumber.substring(1) 
-      : phoneNumber.startsWith('91') 
-        ? phoneNumber 
+    const formattedPhoneNumber = phoneNumber.startsWith('+')
+      ? phoneNumber.substring(1)
+      : phoneNumber.startsWith('91')
+        ? phoneNumber
         : `91${phoneNumber}`;
-        
+
     console.log('Sending WhatsApp document to:', formattedPhoneNumber);
-    
-    // For now, just send a text message with the document URL
-    // In a production environment, you would use the WhatsApp API to send a document
-    const message = `Document: ${documentUrl}${caption ? `\n\n${caption}` : ''}`;
-    const result = await sendWhatsAppTextMessage(formattedPhoneNumber, message);
-    
+
+    // Use the proper document sending function
+    const result = await sendWhatsAppDocument(
+      formattedPhoneNumber,
+      documentUrl,
+      caption,
+      filename
+    );
+
     // Return the result
     return NextResponse.json({ success: true, result });
   } catch (error) {

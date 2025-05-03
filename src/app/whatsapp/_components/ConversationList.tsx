@@ -16,7 +16,6 @@ import {
   Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import { formatDistanceToNow } from 'date-fns';
 
 // Define the conversation type based on our query
@@ -33,7 +32,6 @@ interface ConversationListProps {
   conversations: Conversation[];
   selectedConversation: string | null;
   onSelectConversation: (sessionId: string) => void;
-  onRefresh?: () => void;
 }
 
 // Helper function to format phone numbers for display
@@ -55,32 +53,14 @@ const formatPhoneNumber = (phoneNumber: string): string => {
 export default function ConversationList({
   conversations,
   selectedConversation,
-  onSelectConversation,
-  onRefresh
+  onSelectConversation
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-  const handleRefresh = () => {
-    if (onRefresh) {
-      setIsRefreshing(true);
-      console.log('Manually refreshing conversations');
-
-      // Call the refresh function
-      onRefresh();
-
-      // Reset the refreshing state after a short delay
-      setTimeout(() => {
-        setIsRefreshing(false);
-      }, 1000);
-    }
-  };
-
-  // Filter conversations based on search query
+  // Filter conversations based on search query (only by phone number)
   const filteredConversations = conversations.filter(
     (conversation) =>
-      conversation.session_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conversation.last_message.toLowerCase().includes(searchQuery.toLowerCase())
+      conversation.session_id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -90,7 +70,7 @@ export default function ConversationList({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <TextField
             fullWidth
-            placeholder="Search or start new chat"
+            placeholder="Search by phone number"
             variant="outlined"
             size="small"
             value={searchQuery}
@@ -109,33 +89,6 @@ export default function ConversationList({
               }
             }}
           />
-          <Tooltip title="Refresh conversations">
-            <IconButton
-              onClick={handleRefresh}
-              size="small"
-              disabled={isRefreshing || !onRefresh}
-              sx={{
-                bgcolor: 'white',
-                '&:hover': {
-                  bgcolor: '#f5f5f5'
-                }
-              }}
-            >
-              <RefreshIcon
-                sx={{
-                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
-                  '@keyframes spin': {
-                    '0%': {
-                      transform: 'rotate(0deg)',
-                    },
-                    '100%': {
-                      transform: 'rotate(360deg)',
-                    },
-                  },
-                }}
-              />
-            </IconButton>
-          </Tooltip>
         </Box>
       </Box>
 
@@ -209,19 +162,6 @@ export default function ConversationList({
                           {formatDistanceToNow(new Date(conversation.last_message_time), { addSuffix: true })}
                         </Typography>
                       </Box>
-                    }
-                    secondary={
-                      <Typography
-                        variant="body2"
-                        color="textSecondary"
-                        sx={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {conversation.last_message}
-                      </Typography>
                     }
                   />
                 </ListItemButton>

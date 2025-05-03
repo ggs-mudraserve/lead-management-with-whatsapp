@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { debounce } from '@/utils/performance';
+import { InactivityWarning } from '@/components/InactivityWarning';
 
 // Define the structure of the profile data we expect
 // Align this with your actual 'profile' table columns
@@ -161,7 +162,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Set up inactivity timeout (10 minutes) that will log out the user
+  const INACTIVITY_TIMEOUT_MINUTES = 10;
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <InactivityWarning timeoutMinutes={INACTIVITY_TIMEOUT_MINUTES} />
+    </AuthContext.Provider>
+  );
 }
 
 // Custom hook to use the AuthContext

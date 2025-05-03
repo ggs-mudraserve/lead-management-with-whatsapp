@@ -302,26 +302,11 @@ export async function sendMessage({ sessionId, content }: { sessionId: string; c
 // Upload and attach a document
 export async function uploadAttachment({ sessionId, file }: { sessionId: string; file: File }) {
   try {
-    // 1. Upload the file to storage
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `whatsapp/${sessionId}/${fileName}`;
-
-    const { error: uploadError, data: uploadData } = await supabase.storage
-      .from('lead-documents') // Updated bucket name
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error('Error uploading file:', uploadError);
-      throw new Error('Failed to upload file');
-    }
-
-    // 2. Get the public URL for the file
-    const { data: urlData } = supabase.storage
-      .from('lead-documents') // Updated bucket name
-      .getPublicUrl(filePath);
-
-    const fileUrl = urlData.publicUrl;
+    console.log('==== UPLOAD ATTACHMENT FUNCTION CALLED ====');
+    console.log('File name:', file.name);
+    console.log('File type:', file.type);
+    console.log('File size:', file.size, 'bytes');
+    console.log('Session ID:', sessionId);
 
     // Format the phone number if needed (ensure it has 91 prefix)
     const formattedSessionId = sessionId.startsWith('+')
@@ -330,32 +315,93 @@ export async function uploadAttachment({ sessionId, file }: { sessionId: string;
         ? sessionId
         : `91${sessionId}`;
 
-    // Create the message object
+    console.log('Formatted session ID:', formattedSessionId);
+
+    // 1. Upload the file to Supabase storage
+    console.log('Uploading file to Supabase storage');
+
+    // Create a path with date/mobile_number/file_name structure
+    const today = new Date();
+    const dateFolder = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    // Extract mobile number (remove country code if present)
+    let mobileNumber = formattedSessionId;
+    if (mobileNumber.startsWith('91') && mobileNumber.length > 10) {
+      mobileNumber = mobileNumber.substring(2);
+    }
+
+    // Create a unique filename to avoid collisions
+    const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${uniqueId}_${file.name}`;
+
+    // Construct the full path
+    const filePath = `${dateFolder}/${mobileNumber}/${fileName}`;
+
+    console.log('File will be stored at path:', filePath);
+
+    // Upload the file to the 'whatsapp' storage bucket
+    // Make sure this bucket name matches exactly what you created in Supabase
+    const bucketName = 'whatsapp';
+    console.log('Using storage bucket:', bucketName);
+
+    const { error: uploadError, data: uploadData } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Error uploading file to Supabase storage:', uploadError);
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
+    }
+
+    console.log('File uploaded successfully to Supabase storage');
+
+    // Get the public URL for the file from the bucket
+    const { data: urlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+
+    const fileUrl = urlData.publicUrl;
+    console.log('File public URL:', fileUrl);
+
+    // Verify the URL is accessible
+    console.log('Testing URL accessibility...');
+    try {
+      const testResponse = await fetch(fileUrl, { method: 'HEAD' });
+      if (testResponse.ok) {
+        console.log('URL is accessible:', testResponse.status);
+      } else {
+        console.warn('URL may not be accessible:', testResponse.status);
+      }
+    } catch (error) {
+      console.warn('Error testing URL accessibility:', error);
+    }
+
+    // 2. Create a message object for the database
     const message = {
       type: 'ai',
       content: `File attached: ${file.name}`,
-      attachment_url: fileUrl,
       file_name: file.name,
       file_type: file.type,
+      attachment_url: fileUrl, // Include the temporary URL
       tool_calls: [],
       additional_kwargs: {
         attachment: {
-          url: fileUrl,
           name: file.name,
-          type: file.type
+          type: file.type,
+          url: fileUrl
         }
       },
       response_metadata: {},
       invalid_tool_calls: []
     };
 
-    // 1. Save the message to Supabase
+    // 3. Save the message to Supabase
     try {
-      console.log('Saving document message to Supabase:', {
-        session_id: formattedSessionId,
-        message_type: message.type,
-        content: message.content
-      });
+      console.log('Saving document message to Supabase');
 
       // Direct insert to Supabase
       const timestamp = new Date().toISOString();
@@ -375,7 +421,8 @@ export async function uploadAttachment({ sessionId, file }: { sessionId: string;
           console.log('Attempting simplified document insert as fallback');
           const simplifiedMessage = {
             type: 'ai',
-            content: `File attached: ${file.name}`
+            content: `File attached: ${file.name}`,
+            attachment_url: fileUrl
           };
 
           const { error: fallbackError } = await supabase
@@ -402,8 +449,8 @@ export async function uploadAttachment({ sessionId, file }: { sessionId: string;
       // Continue with sending the document even if saving to Supabase fails
     }
 
-    // 2. Send the document via the WhatsApp API endpoint
-    console.log('Sending WhatsApp document via API endpoint');
+    // 4. Send the document via the WhatsApp API using the temporary URL
+    console.log('Sending document via WhatsApp API using temporary URL');
 
     const response = await fetch('/api/whatsapp/send-document', {
       method: 'POST',
@@ -425,6 +472,9 @@ export async function uploadAttachment({ sessionId, file }: { sessionId: string;
 
     const result = await response.json();
     console.log('WhatsApp API document response:', result);
+
+    // We're keeping the file in storage for future access
+    console.log('File will remain in storage for future access');
 
     return true;
   } catch (error) {
