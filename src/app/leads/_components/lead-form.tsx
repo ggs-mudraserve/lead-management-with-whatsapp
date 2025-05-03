@@ -16,13 +16,20 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import DownloadIcon from '@mui/icons-material/Download';
+import DeleteIcon from '@mui/icons-material/Delete';
 import * as XLSX from 'xlsx';
 import { differenceInDays, parseISO } from 'date-fns';
+import { deleteLead } from '@/lib/supabase/queries/leads';
 
 // Updated dropdown data based on PRD 3.3
 const segments = ['PL', 'BL']; // Personal Loan, Business Loan
@@ -34,6 +41,8 @@ interface LeadFormData {
   firstName: string;
   lastName: string;
   mother_name: string;
+  father_name: string; // New field
+  pan: string; // New field
   mobile: string;
   current_resi_address: string;
   current_pin_code: string;
@@ -45,6 +54,11 @@ interface LeadFormData {
   official_mail_id: string;
   personal_mail_id: string;
   dob: string;
+  spouse_name: string;
+  designation: string; // New field
+  date_of_joining: string; // New field
+  turnover: string; // New field
+  nature_of_business: string; // New field
   reference_1_name: string;
   reference_1_phone: string;
   reference_1_address: string;
@@ -62,6 +76,8 @@ interface SupabaseLeadData {
   first_name: string;
   last_name: string | null;
   mother_name: string | null;
+  father_name: string | null; // New field
+  pan: string | null; // New field
   current_resi_address: string | null;
   current_pin_code: string | null;
   permanent_address: string | null;
@@ -71,6 +87,11 @@ interface SupabaseLeadData {
   official_mail_id: string | null;
   personal_mail_id: string | null;
   dob: string | null; // date
+  spouse_name: string | null;
+  designation: string | null; // New field
+  date_of_joining: string | null; // New field - date
+  turnover: number | null; // New field - numeric
+  nature_of_business: string | null; // New field
   reference_1_name: string | null;
   reference_1_phone: string | null;
   reference_1_address: string | null;
@@ -113,12 +134,15 @@ export function LeadForm() {
   // Get role from the fetched profile data
   const userRole = profile?.role;
   const [isExporting, setIsExporting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [formData, setFormData] = useState<LeadFormData>({
     segment: '',
     firstName: '',
     lastName: '',
     mother_name: '',
+    father_name: '',
+    pan: '',
     mobile: '',
     current_resi_address: '',
     current_pin_code: '',
@@ -130,6 +154,11 @@ export function LeadForm() {
     official_mail_id: '',
     personal_mail_id: '',
     dob: '',
+    spouse_name: '',
+    designation: '',
+    date_of_joining: '',
+    turnover: '',
+    nature_of_business: '',
     reference_1_name: '',
     reference_1_phone: '',
     reference_1_address: '',
@@ -213,6 +242,8 @@ export function LeadForm() {
         firstName: leadData.first_name || '',
         lastName: leadData.last_name || '',
         mother_name: leadData.mother_name || '',
+        father_name: leadData.father_name || '',
+        pan: leadData.pan || '',
         mobile: leadData.mobile_number || '',
         current_resi_address: leadData.current_resi_address || '',
         current_pin_code: leadData.current_pin_code || '',
@@ -224,6 +255,11 @@ export function LeadForm() {
         official_mail_id: leadData.official_mail_id || '',
         personal_mail_id: leadData.personal_mail_id || '',
         dob: leadData.dob || '',
+        spouse_name: leadData.spouse_name || '',
+        designation: leadData.designation || '',
+        date_of_joining: leadData.date_of_joining || '',
+        turnover: leadData.turnover !== null ? String(leadData.turnover) : '',
+        nature_of_business: leadData.nature_of_business || '',
         reference_1_name: leadData.reference_1_name || '',
         reference_1_phone: leadData.reference_1_phone || '',
         reference_1_address: leadData.reference_1_address || '',
@@ -265,6 +301,8 @@ export function LeadForm() {
             first_name: formDataToSave.firstName,
             last_name: formDataToSave.lastName || null,
             mother_name: formDataToSave.mother_name || null,
+            father_name: formDataToSave.father_name || null,
+            pan: formDataToSave.pan || null,
             mobile_number: formDataToSave.mobile,
             current_resi_address: formDataToSave.current_resi_address || null,
             current_pin_code: formDataToSave.current_pin_code || null,
@@ -275,6 +313,11 @@ export function LeadForm() {
             official_mail_id: formDataToSave.official_mail_id || null,
             personal_mail_id: formDataToSave.personal_mail_id || null,
             dob: formDataToSave.dob || null,
+            spouse_name: formDataToSave.spouse_name || null,
+            designation: formDataToSave.designation || null,
+            date_of_joining: formDataToSave.date_of_joining || null,
+            turnover: formDataToSave.turnover ? parseFloat(formDataToSave.turnover) : null,
+            nature_of_business: formDataToSave.nature_of_business || null,
             reference_1_name: formDataToSave.reference_1_name || null,
             reference_1_phone: formDataToSave.reference_1_phone || null,
             reference_1_address: formDataToSave.reference_1_address || null,
@@ -343,6 +386,24 @@ export function LeadForm() {
     }
  });
 
+ // Delete lead mutation
+ const deleteLeadMutation = useMutation({
+    mutationFn: () => {
+      if (!leadId) throw new Error('Lead ID is required for deletion');
+      return deleteLead(supabase, leadId);
+    },
+    onSuccess: () => {
+      setSnackbar({ open: true, message: 'Lead deleted successfully!', severity: 'success' });
+      setDeleteConfirmOpen(false);
+      // Redirect to leads list page
+      router.push('/leads');
+    },
+    onError: (error: Error) => {
+      setSnackbar({ open: true, message: `Failed to delete lead: ${error.message}`, severity: 'error' });
+      setDeleteConfirmOpen(false);
+    },
+ });
+
  // Update handleSubmit to call the mutation
  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -358,8 +419,16 @@ export function LeadForm() {
      setSnackbar(prev => ({ ...prev, open: false }));
   }
 
+  const openDeleteDialog = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    deleteLeadMutation.mutate();
+  };
+
   // Combine all loading states
-  const isProcessing = authLoading || isLoadingLead || saveLeadMutation.isPending || (userRole === 'admin' && !isCreateMode && isLoadingUsers);
+  const isProcessing = authLoading || isLoadingLead || saveLeadMutation.isPending || deleteLeadMutation.isPending || (userRole === 'admin' && !isCreateMode && isLoadingUsers);
 
   // Display loading indicator if any relevant data is loading
   if (isProcessing && !isCreateMode) { // Show loading primarily in edit mode
@@ -425,8 +494,63 @@ export function LeadForm() {
 
     setIsExporting(true);
     try {
-      // Define headers based on SupabaseLeadData interface keys (snake_case)
-      const headers = Object.keys(leadData).filter(key => key !== 'id'); // Exclude id maybe?
+      // Define a custom order for columns (keys from SupabaseLeadData)
+      // You can rearrange this array to change the order of columns in the exported file
+      const orderedColumns = [
+        // Personal Information
+        'first_name',
+        'last_name',
+        'mobile_number',
+        'segment',
+        'mother_name',
+        'father_name',
+        'pan',
+        'dob',
+        'spouse_name',
+
+        // Contact Information
+        'personal_mail_id',
+        'official_mail_id',
+
+        // Address Information
+        'current_resi_address',
+        'current_pin_code',
+        'rented_owned',
+        'permanent_address',
+
+        // Employment Information
+        'company_name',
+        'designation',
+        'date_of_joining',
+        'net_salary',
+        'turnover',
+        'nature_of_business',
+        'office_address',
+
+        // References
+        'reference_1_name',
+        'reference_1_phone',
+        'reference_1_address',
+        'reference_2_name',
+        'reference_2_phone',
+        'reference_2_address',
+
+        // Lead Management
+        'lead_owner',
+        'created_at',
+        'updated_at'
+      ];
+
+      // Filter out any columns that don't exist in the leadData
+      const headers = orderedColumns.filter(column =>
+        column in leadData && column !== 'id'
+      );
+
+      // Add any columns from leadData that might not be in our ordered list
+      // This ensures we don't miss any data that might be in the database
+      Object.keys(leadData)
+        .filter(key => key !== 'id' && !headers.includes(key))
+        .forEach(key => headers.push(key));
 
       // Check if masking is needed
       let shouldMask = false;
@@ -451,7 +575,6 @@ export function LeadForm() {
         }
         return value ?? ''; // Return original value or empty string
       });
-
 
       const sheetData = [
         headers.map(h => h.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase())), // Format headers
@@ -561,10 +684,19 @@ export function LeadForm() {
                 <TextField required fullWidth id="lastName" label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
              </Grid>
              <Grid item xs={12} sm={6}>
+                <TextField fullWidth id="father_name" label="Father's Name" name="father_name" value={formData.father_name} onChange={handleChange} />
+             </Grid>
+             <Grid item xs={12} sm={6}>
                 <TextField fullWidth id="mother_name" label="Mother's Name" name="mother_name" value={formData.mother_name} onChange={handleChange} />
              </Grid>
              <Grid item xs={12} sm={6}>
                  <TextField fullWidth id="dob" label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+             </Grid>
+             <Grid item xs={12} sm={6}>
+                 <TextField fullWidth id="spouse_name" label="Spouse Name" name="spouse_name" value={formData.spouse_name} onChange={handleChange} />
+             </Grid>
+             <Grid item xs={12} sm={6}>
+                 <TextField fullWidth id="pan" label="PAN Number" name="pan" value={formData.pan} onChange={handleChange} inputProps={{ maxLength: 10 }} />
              </Grid>
            </Grid>
          </CardContent>
@@ -634,7 +766,19 @@ export function LeadForm() {
                         <TextField fullWidth id="company_name" label="Company Name" name="company_name" value={formData.company_name} onChange={handleChange} />
                     </Grid>
                     <Grid item xs={12} sm={6}>
+                        <TextField fullWidth id="designation" label="Designation" name="designation" value={formData.designation} onChange={handleChange} />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField fullWidth id="date_of_joining" label="Date of Joining" name="date_of_joining" type="date" value={formData.date_of_joining} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
                         <TextField fullWidth id="net_salary" label="Net Salary" name="net_salary" type="number" value={formData.net_salary} onChange={handleChange} />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField fullWidth id="turnover" label="Turnover" name="turnover" type="number" value={formData.turnover} onChange={handleChange} />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField fullWidth id="nature_of_business" label="Nature of Business" name="nature_of_business" value={formData.nature_of_business} onChange={handleChange} />
                     </Grid>
                     <Grid item xs={12}>
                         <TextField fullWidth id="office_address" label="Office Address" name="office_address" multiline rows={3} value={formData.office_address} onChange={handleChange} />
@@ -666,9 +810,53 @@ export function LeadForm() {
 
         {/* TODO: Add sections for Notes (Task 5), Documents (Task 6), Bank Apps (Task 7) - likely within their own Cards */}
 
-        <Button type="submit" fullWidth variant="contained" sx={{ mt: 1, mb: 4 }} disabled={isProcessing || saveLeadMutation.isPending}>
-          {saveLeadMutation.isPending ? 'Saving...' : (isCreateMode ? 'Create Lead' : 'Save Changes')}
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, mb: 4 }}>
+          <Button type="submit" variant="contained" sx={{ flexGrow: 1 }} disabled={isProcessing || saveLeadMutation.isPending}>
+            {saveLeadMutation.isPending ? 'Saving...' : (isCreateMode ? 'Create Lead' : 'Save Changes')}
+          </Button>
+
+          {/* Delete button - only visible to admin users in edit mode */}
+          {userRole === 'admin' && !isCreateMode && (
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={openDeleteDialog}
+              disabled={isProcessing || deleteLeadMutation.isPending}
+              sx={{ ml: 2 }}
+            >
+              {deleteLeadMutation.isPending ? 'Deleting...' : 'Delete Lead'}
+            </Button>
+          )}
+        </Box>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">Confirm Delete Lead</DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Are you sure you want to permanently delete this lead? This action cannot be undone and will remove all associated data.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleteLeadMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              color="error"
+              disabled={deleteLeadMutation.isPending}
+              startIcon={deleteLeadMutation.isPending ? <CircularProgress size={20} /> : <DeleteIcon />}
+            >
+              {deleteLeadMutation.isPending ? 'Deleting...' : 'Delete Lead'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Snackbar for feedback */}
          <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose}>
@@ -678,4 +866,4 @@ export function LeadForm() {
         </Snackbar>
      </Box>
   );
-} 
+}

@@ -22,6 +22,9 @@ import { ClientHeaderWrapper } from '@/components/layout/client-header-wrapper';
 export const metadata: Metadata = {
   title: "Lead & Bank App Management",
   description: "Internal application for managing leads and bank applications",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

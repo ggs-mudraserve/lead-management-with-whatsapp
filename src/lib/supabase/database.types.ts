@@ -269,6 +269,7 @@ export type Database = {
           reference_2_phone: string | null
           rented_owned: Database["public"]["Enums"]["rental_status"] | null
           segment: Database["public"]["Enums"]["segment_type"] | null
+          spouse_name: string | null
           updated_at: string | null
         }
         Insert: {
@@ -295,6 +296,7 @@ export type Database = {
           reference_2_name?: string | null
           reference_2_phone?: string | null
           rented_owned?: Database["public"]["Enums"]["rental_status"] | null
+          spouse_name?: string | null
           segment?: Database["public"]["Enums"]["segment_type"] | null
           updated_at?: string | null
         }
@@ -323,6 +325,7 @@ export type Database = {
           reference_2_phone?: string | null
           rented_owned?: Database["public"]["Enums"]["rental_status"] | null
           segment?: Database["public"]["Enums"]["segment_type"] | null
+          spouse_name?: string | null
           updated_at?: string | null
         }
         Relationships: [
