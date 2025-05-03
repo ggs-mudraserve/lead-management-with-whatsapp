@@ -658,7 +658,7 @@ export function LeadForm() {
            <Typography variant="h6" gutterBottom>Personal Information</Typography>
            <Grid container spacing={2}>
              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
+                <FormControl fullWidth sx={{ minWidth: '200px' }}>
                   <InputLabel id="segment-label">Segment (PL/BL)</InputLabel>
                   <Select
                     labelId="segment-label"
@@ -667,6 +667,7 @@ export function LeadForm() {
                     value={formData.segment}
                     label="Segment (PL/BL)"
                     onChange={handleSelectChange}
+                    sx={{ width: '100%' }}
                   >
                     {segments.map((seg) => (
                       <MenuItem key={seg} value={seg}>
@@ -743,9 +744,17 @@ export function LeadForm() {
                     <TextField fullWidth id="current_pin_code" label="Current Pincode" name="current_pin_code" value={formData.current_pin_code} onChange={handleChange} inputProps={{ maxLength: 6, pattern: '\\d{6}', title: 'Please enter exactly 6 digits' }} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
+                    <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel id="rented_owned-label">Rental Status</InputLabel>
-                    <Select labelId="rented_owned-label" id="rented_owned" name="rented_owned" value={formData.rented_owned} label="Rental Status" onChange={handleSelectChange} >
+                    <Select
+                        labelId="rented_owned-label"
+                        id="rented_owned"
+                        name="rented_owned"
+                        value={formData.rented_owned}
+                        label="Rental Status"
+                        onChange={handleSelectChange}
+                        sx={{ width: '100%' }}
+                    >
                         {rentalStatuses.map((status) => (<MenuItem key={status} value={status}>{status}</MenuItem>))}
                     </Select>
                     </FormControl>

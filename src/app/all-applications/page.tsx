@@ -173,9 +173,9 @@ export default function AllApplicationsPage() {
             </Box>
 
             <Grid container spacing={2} sx={{ mb: 3, alignItems: 'center' }}>
-                <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth size="small">
-                    <InputLabel id="segment-filter-label">Segment</InputLabel>
+                <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
+                    <FormControl fullWidth size="small" sx={{ width: '160px' }}>
+                    <InputLabel id="segment-filter-label" sx={{ fontWeight: 'bold' }}>Segment</InputLabel>
                     <Select
                         labelId="segment-filter-label"
                         multiple
@@ -184,6 +184,7 @@ export default function AllApplicationsPage() {
                         input={<OutlinedInput label="Segment" />}
                         renderValue={(selected) => selected.join(', ')}
                         MenuProps={MenuProps}
+                        sx={{ width: '160px' }}
                     >
                         {segmentOptions.map((segment: string) => (
                         <MenuItem key={segment} value={segment}>
@@ -195,9 +196,9 @@ export default function AllApplicationsPage() {
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
-                     <FormControl fullWidth size="small">
-                    <InputLabel id="stage-filter-label">Stage</InputLabel>
+                <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
+                     <FormControl fullWidth size="small" sx={{ width: '160px' }}>
+                    <InputLabel id="stage-filter-label" sx={{ fontWeight: 'bold' }}>Stage</InputLabel>
                     <Select
                         labelId="stage-filter-label"
                         multiple
@@ -206,6 +207,7 @@ export default function AllApplicationsPage() {
                         input={<OutlinedInput label="Stage" />}
                         renderValue={(selected) => selected.join(', ')}
                         MenuProps={MenuProps}
+                        sx={{ width: '160px' }}
                     >
                         {leadStageOptions.map((stage: string) => (
                         <MenuItem key={stage} value={stage}>
@@ -217,9 +219,9 @@ export default function AllApplicationsPage() {
                     </FormControl>
                 </Grid>
 
-                 <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth size="small" disabled={isLoadingOwners}>
-                        <InputLabel id="owner-filter-label">Lead Owner</InputLabel>
+                 <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
+                    <FormControl fullWidth size="small" disabled={isLoadingOwners} sx={{ width: '160px' }}>
+                        <InputLabel id="owner-filter-label" sx={{ fontWeight: 'bold' }}>Lead Owner</InputLabel>
                         <Select
                             labelId="owner-filter-label"
                             multiple
@@ -233,6 +235,7 @@ export default function AllApplicationsPage() {
                                     .join(', ');
                             }}
                             MenuProps={MenuProps}
+                            sx={{ width: '160px' }}
                         >
                             {ownerOptions?.map((owner) => (
                                 <MenuItem key={owner.id} value={owner.id}>
@@ -243,14 +246,11 @@ export default function AllApplicationsPage() {
                             {isLoadingOwners && <MenuItem disabled>Loading...</MenuItem>}
                         </Select>
                     </FormControl>
-                     <Typography variant="caption" color="textSecondary">
-                        (Filter not fully implemented)
-                    </Typography>
                 </Grid>
 
-                 <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth size="small" disabled={isLoadingTeams}>
-                        <InputLabel id="team-filter-label">Team</InputLabel>
+                 <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
+                    <FormControl fullWidth size="small" disabled={isLoadingTeams} sx={{ width: '160px' }}>
+                        <InputLabel id="team-filter-label" sx={{ fontWeight: 'bold' }}>Team</InputLabel>
                         <Select
                             labelId="team-filter-label"
                             multiple
@@ -264,6 +264,7 @@ export default function AllApplicationsPage() {
                                     .join(', ');
                             }}
                             MenuProps={MenuProps}
+                            sx={{ width: '160px' }}
                         >
                             {teamOptions?.map((team) => (
                                 <MenuItem key={team.id} value={team.id}>
@@ -274,25 +275,40 @@ export default function AllApplicationsPage() {
                             {isLoadingTeams && <MenuItem disabled>Loading...</MenuItem>}
                         </Select>
                     </FormControl>
-                    <Typography variant="caption" color="textSecondary">
-                        (Filter not fully implemented)
-                    </Typography>
                 </Grid>
 
-                 <Grid item xs={12} sm={6} md={3}>
+                 <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
                     <DatePicker
                         label="Login Date Start"
                         value={filters.loginDateStart ? new Date(filters.loginDateStart) : null}
                         onChange={(newValue) => handleDateChange(newValue, 'loginDateStart')}
-                        slotProps={{ textField: { size: 'small', fullWidth: true }}}
+                        slotProps={{
+                            textField: {
+                                size: 'small',
+                                fullWidth: true,
+                                sx: { width: '160px' },
+                                InputLabelProps: {
+                                    sx: { fontWeight: 'bold' }
+                                }
+                            }
+                        }}
                     />
                  </Grid>
-                 <Grid item xs={12} sm={6} md={3}>
+                 <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
                     <DatePicker
                         label="Login Date End"
                         value={filters.loginDateEnd ? new Date(filters.loginDateEnd) : null}
                         onChange={(newValue) => handleDateChange(newValue, 'loginDateEnd')}
-                        slotProps={{ textField: { size: 'small', fullWidth: true }}}
+                        slotProps={{
+                            textField: {
+                                size: 'small',
+                                fullWidth: true,
+                                sx: { width: '160px' },
+                                InputLabelProps: {
+                                    sx: { fontWeight: 'bold' }
+                                }
+                            }
+                        }}
                     />
                  </Grid>
             </Grid>

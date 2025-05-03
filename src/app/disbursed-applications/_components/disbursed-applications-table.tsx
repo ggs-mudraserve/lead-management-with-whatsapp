@@ -320,9 +320,9 @@ export default function DisbursedApplicationsTable() {
             )}
         </Box>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FormControl fullWidth size="small">
-              <InputLabel id="segment-filter-label">Segment</InputLabel>
+              <InputLabel id="segment-filter-label" sx={{ fontWeight: 'bold' }}>Segment</InputLabel>
               <Select
                 labelId="segment-filter-label"
                 multiple
@@ -331,6 +331,7 @@ export default function DisbursedApplicationsTable() {
                 input={<OutlinedInput label="Segment" />}
                 renderValue={(selected) => selected.join(', ')}
                 MenuProps={MenuProps}
+                sx={{ minWidth: '180px' }}
               >
                 {segmentOptions.map((segment) => (
                   <MenuItem key={segment} value={segment}>
@@ -341,9 +342,9 @@ export default function DisbursedApplicationsTable() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FormControl fullWidth size="small" disabled={isLoadingOwners}>
-              <InputLabel id="owner-filter-label">Lead Owner</InputLabel>
+              <InputLabel id="owner-filter-label" sx={{ fontWeight: 'bold' }}>Lead Owner</InputLabel>
               <Select
                 labelId="owner-filter-label"
                 multiple
@@ -352,6 +353,7 @@ export default function DisbursedApplicationsTable() {
                 input={<OutlinedInput label="Lead Owner" />}
                 renderValue={(selected) => selected.map(id => ownerMap[id] || id).join(', ')}
                 MenuProps={MenuProps}
+                sx={{ minWidth: '180px' }}
               >
                 {(owners || []).map((owner) => (
                   <MenuItem key={owner.id} value={owner.id}>
@@ -362,9 +364,9 @@ export default function DisbursedApplicationsTable() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
              <FormControl fullWidth size="small" disabled={isLoadingTeams}>
-               <InputLabel id="team-filter-label">Team</InputLabel>
+               <InputLabel id="team-filter-label" sx={{ fontWeight: 'bold' }}>Team</InputLabel>
                <Select
                  labelId="team-filter-label"
                  multiple
@@ -373,6 +375,7 @@ export default function DisbursedApplicationsTable() {
                  input={<OutlinedInput label="Team" />}
                  renderValue={(selected) => selected.map(id => teamMap[id] || id).join(', ')}
                  MenuProps={MenuProps}
+                 sx={{ minWidth: '180px' }}
                >
                  {(teams || []).map((team) => (
                    <MenuItem key={team.id} value={team.id}>
@@ -383,18 +386,34 @@ export default function DisbursedApplicationsTable() {
                </Select>
              </FormControl>
            </Grid>
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1 }}>
+          <Grid item xs={12} sm={6} md={4} sx={{ display: 'flex', gap: 1 }}>
             <DatePicker
               label="Disburse Start"
               value={filters.disburseDateStart}
               onChange={(newValue) => handleFilterChange('disburseDateStart', newValue)}
-              slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  fullWidth: true,
+                  InputLabelProps: {
+                    sx: { fontWeight: 'bold' }
+                  }
+                }
+              }}
             />
             <DatePicker
               label="Disburse End"
               value={filters.disburseDateEnd}
               onChange={(newValue) => handleFilterChange('disburseDateEnd', newValue)}
-              slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  fullWidth: true,
+                  InputLabelProps: {
+                    sx: { fontWeight: 'bold' }
+                  }
+                }
+              }}
               minDate={filters.disburseDateStart || undefined}
             />
           </Grid>

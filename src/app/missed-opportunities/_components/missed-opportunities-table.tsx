@@ -418,45 +418,103 @@ export default function MissedOpportunitiesTable() {
         </Box>
         <Grid container spacing={2}>
            {/* Segment Filter */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FormControl fullWidth size="small">
-              <InputLabel id="segment-filter-label">Segment</InputLabel>
-              <Select labelId="segment-filter-label" multiple value={filters.segments} onChange={(e) => handleFilterChange('segments', e.target.value as string[])} input={<OutlinedInput label="Segment" />} renderValue={(selected) => selected.join(', ')} MenuProps={MenuProps}>
-                {segmentOptions.map((segment) => (<MenuItem key={segment} value={segment}><Checkbox checked={filters.segments.indexOf(segment) > -1} /><ListItemText primary={segment} /></MenuItem>))}
+              <InputLabel id="segment-filter-label" sx={{ fontWeight: 'bold' }}>Segment</InputLabel>
+              <Select
+                labelId="segment-filter-label"
+                multiple
+                value={filters.segments}
+                onChange={(e) => handleFilterChange('segments', e.target.value as string[])}
+                input={<OutlinedInput label="Segment" />}
+                renderValue={(selected) => selected.join(', ')}
+                MenuProps={MenuProps}
+                sx={{ minWidth: '180px' }}
+              >
+                {segmentOptions.map((segment) => (
+                  <MenuItem key={segment} value={segment}>
+                    <Checkbox checked={filters.segments.indexOf(segment) > -1} />
+                    <ListItemText primary={segment} />
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
           {/* Owner Filter */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FormControl fullWidth size="small" disabled={isLoadingOwners}>
-              <InputLabel id="owner-filter-label">Owner</InputLabel>
-              <Select labelId="owner-filter-label" multiple value={filters.ownerIds} onChange={(e) => handleFilterChange('ownerIds', e.target.value as string[])} input={<OutlinedInput label="Lead Owner" />} renderValue={(selected) => selected.map(id => ownerMap[id] || id).join(', ')} MenuProps={MenuProps}>
-                {(owners || []).map((owner) => (<MenuItem key={owner.id} value={owner.id}><Checkbox checked={filters.ownerIds.indexOf(owner.id) > -1} /><ListItemText primary={`${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim()} /></MenuItem>))}
+              <InputLabel id="owner-filter-label" sx={{ fontWeight: 'bold' }}>Owner</InputLabel>
+              <Select
+                labelId="owner-filter-label"
+                multiple
+                value={filters.ownerIds}
+                onChange={(e) => handleFilterChange('ownerIds', e.target.value as string[])}
+                input={<OutlinedInput label="Lead Owner" />}
+                renderValue={(selected) => selected.map(id => ownerMap[id] || id).join(', ')}
+                MenuProps={MenuProps}
+                sx={{ minWidth: '180px' }}
+              >
+                {(owners || []).map((owner) => (
+                  <MenuItem key={owner.id} value={owner.id}>
+                    <Checkbox checked={filters.ownerIds.indexOf(owner.id) > -1} />
+                    <ListItemText primary={`${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim()} />
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
           {/* Team Filter */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
              <FormControl fullWidth size="small" disabled={isLoadingTeams}>
-               <InputLabel id="team-filter-label">Team</InputLabel>
-               <Select labelId="team-filter-label" multiple value={filters.teamIds} onChange={(e) => handleFilterChange('teamIds', e.target.value as string[])} input={<OutlinedInput label="Team" />} renderValue={(selected) => selected.map(id => teamMap[id] || id).join(', ')} MenuProps={MenuProps}>
-                 {(teams || []).map((team) => (<MenuItem key={team.id} value={team.id}><Checkbox checked={filters.teamIds.indexOf(team.id) > -1} /><ListItemText primary={team.name} /></MenuItem>))}
+               <InputLabel id="team-filter-label" sx={{ fontWeight: 'bold' }}>Team</InputLabel>
+               <Select
+                 labelId="team-filter-label"
+                 multiple
+                 value={filters.teamIds}
+                 onChange={(e) => handleFilterChange('teamIds', e.target.value as string[])}
+                 input={<OutlinedInput label="Team" />}
+                 renderValue={(selected) => selected.map(id => teamMap[id] || id).join(', ')}
+                 MenuProps={MenuProps}
+                 sx={{ minWidth: '180px' }}
+               >
+                 {(teams || []).map((team) => (
+                   <MenuItem key={team.id} value={team.id}>
+                     <Checkbox checked={filters.teamIds.indexOf(team.id) > -1} />
+                     <ListItemText primary={team.name} />
+                   </MenuItem>
+                 ))}
                </Select>
              </FormControl>
            </Grid>
            {/* Creation/Assignment Date Filter */}
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1 }}>
+          <Grid item xs={12} sm={6} md={4} sx={{ display: 'flex', gap: 1 }}>
             <DatePicker
                 label="Created After"
                 value={filters.creationDateStart}
                 onChange={(newValue) => handleFilterChange('creationDateStart', newValue ? dayjs(newValue) : null)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    fullWidth: true,
+                    InputLabelProps: {
+                      sx: { fontWeight: 'bold' }
+                    }
+                  }
+                }}
             />
             <DatePicker
                 label="Created Before"
                 value={filters.creationDateEnd}
                 onChange={(newValue) => handleFilterChange('creationDateEnd', newValue ? dayjs(newValue) : null)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    fullWidth: true,
+                    InputLabelProps: {
+                      sx: { fontWeight: 'bold' }
+                    }
+                  }
+                }}
                 minDate={filters.creationDateStart || undefined}
             />
           </Grid>
