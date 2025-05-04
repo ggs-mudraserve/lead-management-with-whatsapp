@@ -168,7 +168,7 @@ export default function UserManagementPage() {
     mutationFn: async (email: string) => {
       const siteUrl = window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${siteUrl}/login`,
+        redirectTo: `${siteUrl}/reset-password`,
       });
 
       if (error) {

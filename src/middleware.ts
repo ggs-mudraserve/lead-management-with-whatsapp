@@ -60,12 +60,17 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Define public paths that don't require authentication
-  const publicPaths = ['/login']; // Add any other public paths like /signup, /forgot-password
+  const publicPaths = ['/login', '/reset-password']; // Public paths that don't require authentication
 
   const requestedPath = request.nextUrl.pathname;
 
   // Allow access to public paths regardless of auth status
   if (publicPaths.includes(requestedPath)) {
+     // Special handling for reset-password page - always allow access
+     if (requestedPath === '/reset-password') {
+       return response; // Always allow access to reset-password
+     }
+
      // If logged-in user tries to access login, redirect them away
      if (user && requestedPath === '/login') {
          return NextResponse.redirect(new URL('/all-applications', request.url));
