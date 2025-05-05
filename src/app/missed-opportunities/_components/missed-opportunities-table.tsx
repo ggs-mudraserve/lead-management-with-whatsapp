@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 import {
@@ -86,6 +86,7 @@ interface Filters {
   creationDateEnd: Dayjs | null;
   page: number;
   rowsPerPage: number;
+  userRole?: string | null; // Add user role to filters
 }
 
 // --- Data Fetching Functions ---
@@ -123,6 +124,14 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
       `id, segment, first_name, last_name, created_at, lead_owner, bank_application!left( id ), lead_missed_reasons!left( reason_id ), profile!left(id, first_name, last_name, team_members!left(team!left(id, name)))`,
       { count: 'exact' }
     )
+
+  // For agent, team_leader, or backend profiles, exclude leads where lead_owner is NULL
+  if (filters.userRole === 'agent' || filters.userRole === 'team_leader' || filters.userRole === 'backend') {
+    console.log(`[fetchMissedOpportunities] Filtering out leads with NULL lead_owner for user role: ${filters.userRole}`);
+    query = query.not('lead_owner', 'is', null);
+  } else {
+    console.log(`[fetchMissedOpportunities] Not filtering leads with NULL lead_owner for user role: ${filters.userRole}`);
+  }
 
   if (filters.segments.length > 0) { query = query.in('segment', filters.segments); }
   if (filters.ownerIds.length > 0) { query = query.in('lead_owner', filters.ownerIds); }
@@ -222,6 +231,7 @@ export default function MissedOpportunitiesTable() {
     creationDateEnd: null,
     page: 0,
     rowsPerPage: 10,
+    userRole: profile?.role || null,
   });
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false, message: '', severity: 'success'
@@ -233,6 +243,17 @@ export default function MissedOpportunitiesTable() {
   const { data: allReasons, isLoading: isLoadingReasons } = useQuery<MissedReason[], Error>({
     queryKey: ['allMissedReasons'], queryFn: fetchAllMissedReasons
   });
+  // Update filters when profile changes
+  useEffect(() => {
+    if (profile) {
+      console.log(`[MissedOpportunitiesTable] Setting user role in filters: ${profile.role}`);
+      setFilters(prev => ({
+        ...prev,
+        userRole: profile.role
+      }));
+    }
+  }, [profile]);
+
   const { data: response, isLoading, error, isError } = useQuery<PaginatedMissedOpportunitiesResponse, Error>({
     queryKey: ['missedOpportunities', filters],
     queryFn: () => fetchMissedOpportunities(filters),
@@ -341,7 +362,8 @@ export default function MissedOpportunitiesTable() {
       const exportFilters = {
         ...filters,
         page: 0,
-        rowsPerPage: 1000000 // A very large number to get all records
+        rowsPerPage: 1000000, // A very large number to get all records
+        userRole: profile?.role || null
       };
 
       // Fetch all data for export
