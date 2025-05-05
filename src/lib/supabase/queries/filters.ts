@@ -14,6 +14,7 @@ export type TeamOption = {
 export const segmentOptions: string[] = ['PL', 'BL'];
 export const leadStageOptions: string[] = [
   'New',
+  'Sent to Bank',
   'Under Review',
   'Reject Review',
   'Reject',
@@ -58,4 +59,4 @@ export async function getTeams(): Promise<TeamOption[]> {
   }
 
   return data;
-} 
+}

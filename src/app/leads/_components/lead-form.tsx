@@ -29,6 +29,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import * as XLSX from 'xlsx';
 import { differenceInDays, parseISO } from 'date-fns';
+import { MOBILE_MASKING_DAYS } from '@/lib/env';
 import { deleteLead } from '@/lib/supabase/queries/leads';
 
 // Updated dropdown data based on PRD 3.3
@@ -465,8 +466,8 @@ export function LeadForm() {
           try {
               const createdAtDate = parseISO(leadData.created_at);
               const daysDiff = differenceInDays(new Date(), createdAtDate);
-              if (daysDiff > 20) {
-                  // Apply mask if older than 20 days
+              if (daysDiff > MOBILE_MASKING_DAYS) {
+                  // Apply mask if older than the configured number of days
                   return maskMobileNumberHelper(formData.mobile);
               }
           } catch (dateError) {
@@ -558,7 +559,7 @@ export function LeadForm() {
         try {
             const createdAtDate = parseISO(leadData.created_at);
             const daysDiff = differenceInDays(new Date(), createdAtDate);
-            if (daysDiff > 20) {
+            if (daysDiff > MOBILE_MASKING_DAYS) {
                 shouldMask = true;
             }
         } catch (dateError) {

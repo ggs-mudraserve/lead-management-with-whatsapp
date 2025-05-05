@@ -2,7 +2,19 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Environment Setup
+
+1. Copy the `.env.local.example` file to `.env.local`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+2. Update the environment variables in `.env.local` with your actual values.
+
+### Running the Development Server
+
+Run the development server:
 
 ```bash
 npm run dev
@@ -15,6 +27,14 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Configuration Options
+
+### Data Privacy Settings
+
+- `NEXT_PUBLIC_MOBILE_MASKING_DAYS`: Number of days after which customer mobile numbers are masked for non-admin users (default: 20)
+
+## Development
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

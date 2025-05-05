@@ -511,6 +511,7 @@ export type Database = {
     Enums: {
       lead_stage:
         | "New"
+        | "Sent to Bank"
         | "Under Review"
         | "Reject Review"
         | "Reject"
@@ -637,6 +638,7 @@ export const Constants = {
     Enums: {
       lead_stage: [
         "New",
+        "Sent to Bank",
         "Under Review",
         "Reject Review",
         "Reject",

@@ -52,6 +52,7 @@ import { Database } from '@/lib/supabase/database.types';
 // Explicitly type as a tuple of the specific enum values
 const LEAD_STAGE_OPTIONS: [Database['public']['Enums']['lead_stage'], ...Database['public']['Enums']['lead_stage'][]] = [
   'New',
+  'Sent to Bank',
   'Under Review',
   'Reject Review',
   'Reject',
@@ -581,4 +582,4 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
       </Snackbar>
     </Box>
   );
-} 
+}
