@@ -1,8 +1,8 @@
 module.exports = {
   apps: [
     {
-      name: 'app',
-      cwd: '/home/server/app',
+      name: 'lead-management-with-whatsapp',
+      cwd: '/home/server/lead-management-with-whatsapp',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',
       env: {
