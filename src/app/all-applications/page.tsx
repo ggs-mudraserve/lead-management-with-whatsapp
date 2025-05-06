@@ -17,6 +17,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import CircularProgress from '@mui/material/CircularProgress';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import * as XLSX from 'xlsx';
+import dayjs from 'dayjs';
 
 import { AllApplicationsTable } from './_components/all-applications-table';
 import Skeleton from '@mui/material/Skeleton';
@@ -82,16 +83,21 @@ export default function AllApplicationsPage() {
   const handleDateChange = (newValue: unknown | null, field: 'loginDateStart' | 'loginDateEnd') => {
     setFilters((prev: Omit<BankApplicationFilters, 'page' | 'rowsPerPage'>) => {
         let dateValue: string | null = null;
-        if (newValue && typeof newValue === 'object' && 'toISOString' in newValue && typeof newValue.toISOString === 'function') {
+
+        // Handle dayjs object
+        if (newValue && dayjs.isDayjs(newValue)) {
+            dateValue = (newValue as any).format('YYYY-MM-DD');
+        }
+        // Handle Date object (fallback)
+        else if (newValue instanceof Date) {
             try {
-                dateValue = (newValue as Date).toISOString().split('T')[0];
+                dateValue = newValue.toISOString().split('T')[0];
             } catch (e) {
                 console.error("Error formatting date:", e);
                 dateValue = null;
             }
-        } else if (newValue instanceof Date) {
-             dateValue = newValue.toISOString().split('T')[0];
         }
+
         return {
             ...prev,
             [field]: dateValue,
@@ -280,7 +286,7 @@ export default function AllApplicationsPage() {
                  <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
                     <DatePicker
                         label="Login Date Start"
-                        value={filters.loginDateStart ? new Date(filters.loginDateStart) : null}
+                        value={filters.loginDateStart ? dayjs(filters.loginDateStart) : null}
                         onChange={(newValue) => handleDateChange(newValue, 'loginDateStart')}
                         slotProps={{
                             textField: {
@@ -297,7 +303,7 @@ export default function AllApplicationsPage() {
                  <Grid item xs={12} sm={6} md={2} sx={{ width: '160px' }}>
                     <DatePicker
                         label="Login Date End"
-                        value={filters.loginDateEnd ? new Date(filters.loginDateEnd) : null}
+                        value={filters.loginDateEnd ? dayjs(filters.loginDateEnd) : null}
                         onChange={(newValue) => handleDateChange(newValue, 'loginDateEnd')}
                         slotProps={{
                             textField: {

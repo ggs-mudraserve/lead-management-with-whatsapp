@@ -5,6 +5,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { debounce } from '@/utils/performance';
 import { InactivityWarning } from '@/components/InactivityWarning';
+import { useRouter } from 'next/navigation';
 
 // Define the structure of the profile data we expect
 // Align this with your actual 'profile' table columns
@@ -34,6 +35,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,6 +146,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.error("Error signing out:", error);
         }
         // State updates (session, profile to null) will be handled by onAuthStateChange
+
+        // Redirect to login page after signout
+        router.push('/login');
     } catch(error) {
         console.error("Exception during sign out:", error);
     } finally {
