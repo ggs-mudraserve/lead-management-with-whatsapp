@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -17,6 +17,7 @@ import IconButton from '@mui/material/IconButton';
 import EditIcon from '@mui/icons-material/Edit';
 import TablePagination from '@mui/material/TablePagination';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 import {
     getBankApplications,
     BankApplicationRow,
@@ -51,6 +52,7 @@ interface AllApplicationsTableProps {
 }
 
 export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
+  const { profile } = useAuth();
   const [order, setOrder] = useState<Order>('desc');
   const [orderBy, setOrderBy] = useState<keyof BankApplicationRow>('login_date');
   const [page, setPage] = useState(0);
@@ -70,8 +72,27 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
     placeholderData: (previousData) => previousData,
   });
 
-  const applications = response?.data ?? [];
-  const totalCount = response?.count ?? 0;
+  // Filter out applications with NULL lead_owner for non-admin users
+  const filteredApplications = useMemo(() => {
+    const rawApplications = response?.data ?? [];
+
+    // If user is admin, show all applications
+    if (profile?.role === 'admin') {
+      return rawApplications;
+    }
+
+    // For agent, team_leader, or backend roles, filter out applications with NULL lead_owner
+    if (['agent', 'team_leader', 'backend'].includes(profile?.role ?? '')) {
+      console.log(`Filtering out applications with NULL lead_owner for ${profile?.role} role`);
+      return rawApplications.filter(app => app.lead_owner_id !== null);
+    }
+
+    // Default fallback - return all applications
+    return rawApplications;
+  }, [response?.data, profile?.role]);
+
+  const applications = filteredApplications;
+  const totalCount = applications.length; // Update count based on filtered results
 
   const handleRequestSort = (property: keyof BankApplicationRow) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -173,7 +194,7 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25, 50]}
         component="div"
-        count={totalCount}
+        count={profile?.role === 'admin' ? (response?.count ?? 0) : totalCount}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
@@ -181,4 +202,4 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
       />
     </Paper>
   );
-} 
+}
