@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -58,41 +58,35 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const queryFilters: BankApplicationFilters = {
-      ...filters,
-      page,
-      rowsPerPage,
-      sortColumn: orderBy,
-      sortDirection: order,
-  };
+  // Create query key for data
+  const dataQueryKey = useMemo(() => {
+    return ['bankApplicationsData', { ...filters, page, rowsPerPage, sortColumn: orderBy, sortDirection: order, userRole: profile?.role }];
+  }, [filters, page, rowsPerPage, orderBy, order, profile?.role]);
 
+  // Fetch applications with pagination - filtering is now handled at the database level
   const { data: response, isLoading, isError, error } = useQuery<PaginatedBankApplicationsResponse, Error>({
-    queryKey: ['bankApplications', queryFilters],
-    queryFn: () => getBankApplications(queryFilters),
+    queryKey: dataQueryKey,
+    queryFn: async () => {
+      // Prepare filters for the API call
+      const queryFilters: BankApplicationFilters = {
+        ...filters,
+        page,
+        rowsPerPage,
+        sortColumn: orderBy,
+        sortDirection: order,
+      };
+
+      // Get applications from the server - filtering for NULL lead owners is now handled in the database function
+      const result = await getBankApplications(queryFilters);
+
+      // Return the result directly - no client-side filtering needed
+      return result;
+    },
     placeholderData: (previousData) => previousData,
   });
 
-  // Filter out applications with NULL lead_owner for non-admin users
-  const filteredApplications = useMemo(() => {
-    const rawApplications = response?.data ?? [];
-
-    // If user is admin, show all applications
-    if (profile?.role === 'admin') {
-      return rawApplications;
-    }
-
-    // For agent, team_leader, or backend roles, filter out applications with NULL lead_owner
-    if (['agent', 'team_leader', 'backend'].includes(profile?.role ?? '')) {
-      console.log(`Filtering out applications with NULL lead_owner for ${profile?.role} role`);
-      return rawApplications.filter(app => app.lead_owner_id !== null);
-    }
-
-    // Default fallback - return all applications
-    return rawApplications;
-  }, [response?.data, profile?.role]);
-
-  const applications = filteredApplications;
-  const totalCount = applications.length; // Update count based on filtered results
+  // Use the filtered data directly
+  const applications = response?.data ?? [];
 
   const handleRequestSort = (property: keyof BankApplicationRow) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -103,6 +97,7 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
   };
 
   const handleChangePage = (event: unknown, newPage: number) => {
+    console.log(`Changing page from ${page} to ${newPage}, total count: ${response?.count ?? 0}`);
     setPage(newPage);
   };
 
@@ -194,7 +189,7 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25, 50]}
         component="div"
-        count={profile?.role === 'admin' ? (response?.count ?? 0) : totalCount}
+        count={response?.count ?? 0}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}

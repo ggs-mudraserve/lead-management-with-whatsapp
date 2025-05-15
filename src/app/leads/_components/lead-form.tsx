@@ -31,6 +31,7 @@ import * as XLSX from 'xlsx';
 import { differenceInDays, parseISO } from 'date-fns';
 import { MOBILE_MASKING_DAYS } from '@/lib/env';
 import { deleteLead } from '@/lib/supabase/queries/leads';
+import { maskMobileNumber } from '@/lib/utils/phone-utils';
 
 // Updated dropdown data based on PRD 3.3
 const segments = ['PL', 'BL']; // Personal Loan, Business Loan
@@ -113,13 +114,7 @@ interface AssignableUser {
   last_name: string | null;
 }
 
-// Helper function to mask mobile number
-const maskMobileNumberHelper = (mobile: string): string => {
-  if (!mobile || mobile.length <= 4) {
-    return mobile; // Return original if invalid or too short
-  }
-  return 'XXXXXX' + mobile.slice(-4);
-};
+// Using maskMobileNumber from utils instead of local helper function
 
 export function LeadForm() {
   const params = useParams();
@@ -468,7 +463,7 @@ export function LeadForm() {
               const daysDiff = differenceInDays(new Date(), createdAtDate);
               if (daysDiff > MOBILE_MASKING_DAYS) {
                   // Apply mask if older than the configured number of days
-                  return maskMobileNumberHelper(formData.mobile);
+                  return maskMobileNumber(formData.mobile);
               }
           } catch (dateError) {
               console.error("Error parsing lead creation date for display masking:", dateError);
@@ -572,7 +567,7 @@ export function LeadForm() {
       const dataRow = headers.map(header => {
         const value = leadData[header as keyof SupabaseLeadData];
         if (header === 'mobile_number' && shouldMask) {
-          return maskMobileNumberHelper(String(value ?? '')); // Mask the mobile number
+          return maskMobileNumber(String(value ?? '')); // Mask the mobile number
         }
         return value ?? ''; // Return original value or empty string
       });

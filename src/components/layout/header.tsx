@@ -58,8 +58,7 @@ export function Header() {
     { label: 'All Applications', href: '/all-applications' },
   ];
 
-  // WhatsApp link is now admin-only
-  const whatsAppLink = { label: 'WhatsApp', href: '/whatsapp' };
+  // WhatsApp link removed
 
   // Individual links based on PRD 3.6 visibility
   const disbursedLink = { label: 'Disbursed', href: '/disbursed-applications' };
@@ -97,7 +96,6 @@ export function Header() {
 
     // Add links visible only to Admin
     if (role === 'admin') {
-      menuLinks.push(whatsAppLink); // Add WhatsApp link for admin users only
       menuLinks = [...menuLinks, ...adminOnlyLinks];
     }
   }

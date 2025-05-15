@@ -13,6 +13,7 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import Checkbox from '@mui/material/Checkbox';
 import ListItemText from '@mui/material/ListItemText';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import DownloadIcon from '@mui/icons-material/Download';
 import CircularProgress from '@mui/material/CircularProgress';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -237,12 +238,28 @@ export default function AllApplicationsPage() {
                             renderValue={(selected) => {
                                 if (selected.length === 0) return '';
                                 return selected
-                                    .map((id: string) => ownerOptions?.find(opt => opt.id === id)?.name ?? id)
+                                    .map((id: string) => {
+                                        if (id === 'unassigned') return 'Unassigned';
+                                        return ownerOptions?.find(opt => opt.id === id)?.name ?? id;
+                                    })
                                     .join(', ');
                             }}
                             MenuProps={MenuProps}
                             sx={{ width: '160px' }}
                         >
+                            {/* Special option for unassigned leads - only visible to admin users */}
+                            {profile?.role === 'admin' &&
+                                <MenuItem key="unassigned" value="unassigned">
+                                    <Checkbox checked={(filters.owners || []).indexOf('unassigned') > -1} />
+                                    <ListItemText primary="Unassigned" />
+                                </MenuItem>
+                            }
+
+                            {/* Divider between unassigned and regular users */}
+                            {profile?.role === 'admin' &&
+                                <Divider sx={{ my: 1 }} />
+                            }
+
                             {ownerOptions?.map((owner) => (
                                 <MenuItem key={owner.id} value={owner.id}>
                                     <Checkbox checked={(filters.owners || []).indexOf(owner.id) > -1} />
