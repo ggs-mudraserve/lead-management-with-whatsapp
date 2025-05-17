@@ -21,12 +21,16 @@ import { SelectChangeEvent } from '@mui/material/Select';
 type UserRole = Database['public']['Enums']['user_role'];
 const userRoles: UserRole[] = ['admin', 'backend', 'team_leader', 'agent'];
 
+type ProfileSegment = Database['public']['Enums']['profile_segment'];
+const profileSegments: ProfileSegment[] = ['PL', 'BL', 'PL_DIGITAL', 'BL_DIGITAL'];
+
 export interface CreateUserFormData {
   email: string;
   password?: string; // Password is only needed on creation, not edit
   first_name: string;
   last_name: string;
   role: UserRole;
+  segment: ProfileSegment | null;
 }
 
 interface CreateUserDialogProps {
@@ -43,6 +47,7 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
     first_name: '',
     last_name: '',
     role: 'agent', // Default role
+    segment: null, // Default segment is null
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateUserFormData, string>>>({});
 
@@ -55,6 +60,7 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
         first_name: '',
         last_name: '',
         role: 'agent',
+        segment: null,
       });
       setErrors({});
     }
@@ -68,13 +74,18 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
     }
   };
 
-  const handleSelectChange = (event: SelectChangeEvent<UserRole>) => {
+  const handleSelectChange = (event: SelectChangeEvent<UserRole | ProfileSegment | null>) => {
     const { name, value } = event.target;
     if (name) {
-      setFormData(prev => ({ ...prev, [name]: value as UserRole }));
-       if (errors[name as keyof CreateUserFormData]) {
-         setErrors(prev => ({ ...prev, [name]: undefined }));
-       }
+      if (name === 'role') {
+        setFormData(prev => ({ ...prev, [name]: value as UserRole }));
+      } else if (name === 'segment') {
+        setFormData(prev => ({ ...prev, [name]: value as ProfileSegment | null }));
+      }
+
+      if (errors[name as keyof CreateUserFormData]) {
+        setErrors(prev => ({ ...prev, [name]: undefined }));
+      }
     }
   };
 
@@ -188,6 +199,27 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
             </Select>
             {errors.role && <FormHelperText>{errors.role}</FormHelperText>}
           </FormControl>
+
+          <FormControl fullWidth margin="dense" disabled={isSubmitting}>
+            <InputLabel id="segment-select-label">Segment</InputLabel>
+            <Select
+              labelId="segment-select-label"
+              id="segment"
+              name="segment"
+              value={formData.segment || ''}
+              label="Segment"
+              onChange={handleSelectChange}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {profileSegments.map((segment) => (
+                <MenuItem key={segment} value={segment}>
+                  {segment}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions sx={{ position: 'relative', p: 2 }}>
           <Button onClick={onClose} disabled={isSubmitting} color="inherit">
@@ -211,4 +243,4 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
       </form>
     </Dialog>
   );
-} 
+}

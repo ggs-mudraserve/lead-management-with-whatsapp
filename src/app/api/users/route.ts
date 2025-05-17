@@ -8,8 +8,8 @@ export async function POST(request: NextRequest) {
 
     // Get the request body
     const body = await request.json();
-    const { email, password, first_name, last_name, role } = body;
-    console.log('API route: Request body parsed', { email, first_name, last_name, role });
+    const { email, password, first_name, last_name, role, segment } = body;
+    console.log('API route: Request body parsed', { email, first_name, last_name, role, segment });
 
     // Validate required fields
     if (!email || !password || !first_name || !role) {
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
           first_name,
           last_name: last_name || null,
           role,
+          segment, // Add the segment field
           // email is automatically set by trigger/auth
           // is_active defaults to true
         })

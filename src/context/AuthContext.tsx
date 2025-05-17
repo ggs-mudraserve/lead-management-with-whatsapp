@@ -16,6 +16,8 @@ interface UserProfile {
   last_name: string | null;
   role: string | null; // Consider using a string literal union type if roles are fixed
   is_active: boolean;
+  segment: 'PL' | 'BL' | 'PL_DIGITAL' | 'BL_DIGITAL' | null;
+  present_today: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -118,7 +120,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Only select the fields we need to reduce payload size
       const { data, error, status } = await supabase
         .from('profile')
-        .select('id, email, first_name, last_name, role, is_active')
+        .select('id, email, first_name, last_name, role, is_active, segment, present_today')
         .eq('id', userId)
         .single();
 
@@ -128,6 +130,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setProfile(null);
       } else if (data) {
         // Cache the profile data to reduce future fetches
+
+        // Update present_today to TRUE when user logs in
+        if (data) {
+          // Update the present_today flag to TRUE
+          const { error: updateError } = await supabase
+            .from('profile')
+            .update({ present_today: true })
+            .eq('id', userId);
+
+          if (updateError) {
+            console.error('Error updating present_today flag:', updateError);
+          } else {
+            // Make sure the profile data reflects the updated present_today value
+            data.present_today = true;
+          }
+        }
+
         setProfile(data as UserProfile);
       }
     } catch (error) {

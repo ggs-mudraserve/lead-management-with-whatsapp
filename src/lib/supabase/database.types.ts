@@ -368,6 +368,8 @@ export type Database = {
           is_active: boolean
           last_name: string | null
           role: Database["public"]["Enums"]["user_role"] | null
+          segment: Database["public"]["Enums"]["profile_segment"] | null
+          present_today: boolean
           updated_at: string | null
         }
         Insert: {
@@ -378,6 +380,8 @@ export type Database = {
           is_active?: boolean
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          segment?: Database["public"]["Enums"]["profile_segment"] | null
+          present_today?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -388,6 +392,8 @@ export type Database = {
           is_active?: boolean
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          segment?: Database["public"]["Enums"]["profile_segment"] | null
+          present_today?: boolean
           updated_at?: string | null
         }
         Relationships: []
@@ -520,6 +526,7 @@ export type Database = {
         | "documents_incomplete"
       rental_status: "Rented" | "Owned"
       segment_type: "PL" | "BL"
+      profile_segment: "PL" | "BL" | "PL_DIGITAL" | "BL_DIGITAL"
       user_role: "admin" | "backend" | "team_leader" | "agent"
     }
     CompositeTypes: {
@@ -648,6 +655,7 @@ export const Constants = {
       ],
       rental_status: ["Rented", "Owned"],
       segment_type: ["PL", "BL"],
+      profile_segment: ["PL", "BL", "PL_DIGITAL", "BL_DIGITAL"],
       user_role: ["admin", "backend", "team_leader", "agent"],
     },
   },
