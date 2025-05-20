@@ -18,6 +18,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Grid from '@mui/material/Grid'; // For layout
 import Typography from '@mui/material/Typography';
+import { useAuth } from '@/context/AuthContext';
 
 interface CreateBankApplicationDialogProps {
     open: boolean;
@@ -100,10 +101,18 @@ async function createBankApplication(params: InsertBankAppParams): Promise<RpcRe
 
 export function CreateBankApplicationDialog({ open, onClose, leadId, onSuccess, onError }: CreateBankApplicationDialogProps) {
     const queryClient = useQueryClient();
+    const { profile } = useAuth();
+    const userRole = profile?.role || 'agent'; // Default to agent if role not available
+    const isAdmin = userRole === 'admin';
+
     const [bankName, setBankName] = useState('');
     const [loanAppNumber, setLoanAppNumber] = useState('');
     const [appliedAmount, setAppliedAmount] = useState<number | string>('');
-    const [loginDate, setLoginDate] = useState('');
+    // Set today's date as default for login date
+    const [loginDate, setLoginDate] = useState(() => {
+        const today = new Date();
+        return today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    });
     const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
     // Fetch banks query
@@ -140,7 +149,9 @@ export function CreateBankApplicationDialog({ open, onClose, leadId, onSuccess, 
         setBankName('');
         setLoanAppNumber('');
         setAppliedAmount('');
-        setLoginDate('');
+        // Reset login date to today's date
+        const today = new Date();
+        setLoginDate(today.toISOString().split('T')[0]);
         setFormErrors({});
     };
 
@@ -264,8 +275,8 @@ export function CreateBankApplicationDialog({ open, onClose, leadId, onSuccess, 
                             onChange={(e) => setLoginDate(e.target.value)}
                             required
                             error={!!formErrors.loginDate}
-                            helperText={formErrors.loginDate}
-                            disabled={createMutation.isPending}
+                            helperText={formErrors.loginDate ? formErrors.loginDate : isAdmin ? '' : 'Only admin can edit this field'}
+                            disabled={createMutation.isPending || !isAdmin}
                             InputLabelProps={{
                                 shrink: true, // Keep label floated for date type
                             }}
@@ -275,11 +286,11 @@ export function CreateBankApplicationDialog({ open, onClose, leadId, onSuccess, 
             </DialogContent>
             <DialogActions sx={{ p: '16px 24px' }}>
                  {createMutation.isError && (
-                     <Typography variant="caption" color="error" sx={{ mr: 'auto' }}> 
-                         {/* Display specific error from mutation state */} 
-                         {createMutation.error?.message || 'An error occurred.'} 
+                     <Typography variant="caption" color="error" sx={{ mr: 'auto' }}>
+                         {/* Display specific error from mutation state */}
+                         {createMutation.error?.message || 'An error occurred.'}
                      </Typography>
-                )} 
+                )}
                 <Button onClick={resetFormAndClose} disabled={createMutation.isPending}>Cancel</Button>
                 <Button onClick={handleSubmit} variant="contained" disabled={createMutation.isPending}>
                     {createMutation.isPending ? <CircularProgress size={24} /> : 'Create Application'}
@@ -287,4 +298,4 @@ export function CreateBankApplicationDialog({ open, onClose, leadId, onSuccess, 
             </DialogActions>
         </Dialog>
     );
-} 
+}

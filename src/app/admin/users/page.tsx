@@ -46,13 +46,14 @@ interface AdminUserView {
   email: string | null;
   role: Database['public']['Enums']['user_role'] | null;
   is_active: boolean | null;
+  present_today: boolean | null;
 }
 
 // Data fetching function
 const fetchAdminUsers = async (): Promise<AdminUserView[]> => {
   const { data, error } = await supabase
     .from('profile')
-    .select('id, first_name, last_name, email, role, is_active')
+    .select('id, first_name, last_name, email, role, is_active, present_today')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -292,6 +293,7 @@ export default function UserManagementPage() {
                 <TableCell>Email</TableCell>
                 <TableCell>Role</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Present Today</TableCell>
                 <TableCell align="center">Active Status Control</TableCell>
                 <TableCell align="center">Reset Password</TableCell>
               </TableRow>
@@ -312,6 +314,13 @@ export default function UserManagementPage() {
                       <Chip
                         label={user.is_active ? 'Active' : 'Inactive'}
                         color={user.is_active ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={user.present_today ? 'Present' : 'Absent'}
+                        color={user.present_today ? 'success' : 'error'}
                         size="small"
                       />
                     </TableCell>
@@ -359,7 +368,7 @@ export default function UserManagementPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">No users found.</TableCell>
+                  <TableCell colSpan={7} align="center">No users found.</TableCell>
                 </TableRow>
               )}
             </TableBody>

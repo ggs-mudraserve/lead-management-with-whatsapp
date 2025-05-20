@@ -403,11 +403,13 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                 label="Login Date"
                 value={field.value || null}
                 onChange={(newValue) => field.onChange(newValue)}
+                readOnly={userRole !== 'admin'}
+                disabled={userRole !== 'admin'}
                 slotProps={{
                   textField: {
                     fullWidth: true,
                     error: !!errors.login_date,
-                    helperText: errors.login_date?.message,
+                    helperText: errors.login_date?.message || (userRole !== 'admin' ? 'Only admin can edit this field' : ''),
                   },
                 }}
               />
