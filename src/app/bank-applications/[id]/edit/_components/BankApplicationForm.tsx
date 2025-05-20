@@ -123,6 +123,8 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [appDeleteConfirmOpen, setAppDeleteConfirmOpen] = useState(false);
+  const [disbursedConfirmOpen, setDisbursedConfirmOpen] = useState(false);
+  const [formDataToSubmit, setFormDataToSubmit] = useState<BankApplicationFormData | null>(null);
 
   const { data: banks, isLoading: isLoadingBanks } = useQuery({
     queryKey: ['banks'],
@@ -146,6 +148,15 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
   const currentStage = watch('lead_stage');
   const showApprovedAmount = React.useMemo(() => ['Approved', 'Disbursed'].includes(currentStage), [currentStage]);
   const showDisburseDate = React.useMemo(() => currentStage === 'Disbursed', [currentStage]);
+
+  // Check if the application is in Disbursed stage and user is not admin
+  // This will be used to disable all fields for non-admin users when application is disbursed
+  // We ONLY check the original application data, not the current form state
+  // This ensures fields only become non-editable after saving
+  const isDisbursedAndNotAdmin = React.useMemo(() =>
+    applicationData.lead_stage === 'Disbursed' && userRole !== 'admin',
+    [applicationData.lead_stage, userRole]
+  );
 
   const updateMutation = useMutation({
     mutationFn: async (formData: BankApplicationFormData) => {
@@ -261,7 +272,26 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
 
   const onSubmit: SubmitHandler<BankApplicationFormData> = (data) => {
     console.log("Form submitted with data:", data);
-    updateMutation.mutate(data);
+
+    // Check if non-admin user is changing stage to Disbursed
+    if (userRole !== 'admin' &&
+        applicationData.lead_stage !== 'Disbursed' &&
+        data.lead_stage === 'Disbursed') {
+      // Store the form data and show confirmation dialog
+      setFormDataToSubmit(data);
+      setDisbursedConfirmOpen(true);
+    } else {
+      // Otherwise, proceed with the update
+      updateMutation.mutate(data);
+    }
+  };
+
+  const handleConfirmDisbursed = () => {
+    if (formDataToSubmit) {
+      updateMutation.mutate(formDataToSubmit);
+      setDisbursedConfirmOpen(false);
+      setFormDataToSubmit(null);
+    }
   };
 
   const handleCloseSnackbar = (_event?: React.SyntheticEvent | Event, reason?: string) => {
@@ -298,6 +328,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                   label="Bank Name"
                   {...field}
                   value={field.value || ''}
+                  disabled={isDisbursedAndNotAdmin}
                 >
                   {(banks || []).map((bank: Bank) => (
                     <MenuItem key={bank.name} value={bank.name}>
@@ -323,6 +354,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                   label="Lead Stage"
                   {...field}
                   value={field.value || ''}
+                  disabled={isDisbursedAndNotAdmin}
                 >
                   {LEAD_STAGE_OPTIONS.map((stage) => (
                     <MenuItem key={stage} value={stage}>
@@ -348,6 +380,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                  error={!!errors.loan_app_number}
                  helperText={errors.loan_app_number?.message}
                  value={field.value ?? ''}
+                 disabled={isDisbursedAndNotAdmin}
                />
              )}
            />
@@ -367,6 +400,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                  helperText={errors.applied_amount?.message}
                  value={field.value ?? ''}
                  onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                 disabled={isDisbursedAndNotAdmin}
                />
              )}
            />
@@ -388,6 +422,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                         helperText={errors.approved_amount?.message}
                         value={field.value ?? ''}
                         onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                        disabled={isDisbursedAndNotAdmin}
                     />
                     )}
                 />
@@ -403,13 +438,13 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                 label="Login Date"
                 value={field.value || null}
                 onChange={(newValue) => field.onChange(newValue)}
-                readOnly={userRole !== 'admin'}
-                disabled={userRole !== 'admin'}
+                readOnly={userRole !== 'admin' || isDisbursedAndNotAdmin}
+                disabled={userRole !== 'admin' || isDisbursedAndNotAdmin}
                 slotProps={{
                   textField: {
                     fullWidth: true,
                     error: !!errors.login_date,
-                    helperText: errors.login_date?.message || (userRole !== 'admin' ? 'Only admin can edit this field' : ''),
+                    helperText: errors.login_date?.message || (userRole !== 'admin' ? 'Only admin can edit this field' : '') || (isDisbursedAndNotAdmin ? 'Field locked - application is disbursed' : ''),
                   },
                 }}
               />
@@ -427,11 +462,13 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                     label="Disburse Date"
                     value={field.value || null}
                     onChange={(newValue) => field.onChange(newValue)}
+                    readOnly={isDisbursedAndNotAdmin}
+                    disabled={isDisbursedAndNotAdmin}
                     slotProps={{
                         textField: {
                         fullWidth: true,
                         error: !!errors.disburse_date,
-                        helperText: errors.disburse_date?.message,
+                        helperText: errors.disburse_date?.message || (isDisbursedAndNotAdmin ? 'Field locked - application is disbursed' : ''),
                         },
                     }}
                     />
@@ -446,10 +483,22 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
         type="submit"
         variant="contained"
         sx={{ mt: 3, mb: 2 }}
-        disabled={updateMutation.isPending || isSubmitting}
+        disabled={updateMutation.isPending || isSubmitting || isDisbursedAndNotAdmin}
       >
         {updateMutation.isPending ? <CircularProgress size={24} /> : 'Save Application Details'}
       </Button>
+
+      {isDisbursedAndNotAdmin && (
+        <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+          This application is in Disbursed stage and cannot be edited except by administrators.
+        </Alert>
+      )}
+
+      {currentStage === 'Disbursed' && applicationData.lead_stage !== 'Disbursed' && userRole !== 'admin' && (
+        <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>
+          Warning: After saving with "Disbursed" stage, you will no longer be able to edit this application. Only administrators will be able to make changes.
+        </Alert>
+      )}
 
       {userRole === 'admin' && (
            <Button
@@ -476,12 +525,12 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
           value={newNote}
           onChange={(e) => setNewNote(e.target.value)}
           variant="outlined"
-          disabled={addNoteMutation.isPending}
+          disabled={addNoteMutation.isPending || isDisbursedAndNotAdmin}
         />
         <Button
           variant="contained"
           onClick={handleAddNote}
-          disabled={addNoteMutation.isPending || !newNote.trim()}
+          disabled={addNoteMutation.isPending || !newNote.trim() || isDisbursedAndNotAdmin}
           sx={{ mt: 1 }}
         >
           {addNoteMutation.isPending ? <CircularProgress size={24} /> : 'Add Note'}
@@ -568,6 +617,35 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                <Button onClick={() => setAppDeleteConfirmOpen(false)}>Cancel</Button>
                <Button onClick={handleConfirmDeleteApp} color="error" disabled={deleteAppMutation.isPending}>
                    Delete Application
+               </Button>
+           </DialogActions>
+       </Dialog>
+
+       <Dialog
+           open={disbursedConfirmOpen}
+           onClose={() => {
+             setDisbursedConfirmOpen(false);
+             setFormDataToSubmit(null);
+           }}
+       >
+           <DialogTitle>Confirm Disbursed Status</DialogTitle>
+           <DialogContent>
+               <DialogContentText>
+                   Setting this application to "Disbursed" status will lock it for editing.
+                   After saving, only administrators will be able to make changes to this application.
+
+                   Are you sure you want to proceed?
+               </DialogContentText>
+           </DialogContent>
+           <DialogActions>
+               <Button onClick={() => {
+                 setDisbursedConfirmOpen(false);
+                 setFormDataToSubmit(null);
+               }}>
+                 Cancel
+               </Button>
+               <Button onClick={handleConfirmDisbursed} color="primary" variant="contained">
+                   Confirm and Save
                </Button>
            </DialogActions>
        </Dialog>
