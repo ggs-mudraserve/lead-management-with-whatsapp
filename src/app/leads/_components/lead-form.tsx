@@ -34,7 +34,7 @@ import { deleteLead } from '@/lib/supabase/queries/leads';
 import { maskMobileNumber } from '@/lib/utils/phone-utils';
 
 // Updated dropdown data based on PRD 3.3
-const segments = ['PL', 'BL']; // Personal Loan, Business Loan
+const segments = ['PL', 'BL', 'PL_DIGITAL', 'BL_DIGITAL']; // Personal Loan, Business Loan, Digital variants
 const rentalStatuses = ['Rented', 'Owned'];
 
 // Interface for form state (camelCase)
@@ -103,7 +103,7 @@ interface SupabaseLeadData {
   lead_owner: string | null; // uuid
   created_at: string | null; // timestamp with time zone
   updated_at: string | null; // timestamp with time zone
-  segment: 'PL' | 'BL' | null; // segment_type enum
+  segment: 'PL' | 'BL' | 'PL_DIGITAL' | 'BL_DIGITAL' | null; // segment_type enum
   rented_owned: 'Rented' | 'Owned' | null; // rental_status enum
 }
 
@@ -320,7 +320,7 @@ export function LeadForm() {
             reference_2_name: formDataToSave.reference_2_name || null,
             reference_2_phone: formDataToSave.reference_2_phone || null,
             reference_2_address: formDataToSave.reference_2_address || null,
-            segment: (formDataToSave.segment as 'PL' | 'BL') || null,
+            segment: (formDataToSave.segment as 'PL' | 'BL' | 'PL_DIGITAL' | 'BL_DIGITAL') || null,
             rented_owned: (formDataToSave.rented_owned as 'Rented' | 'Owned') || null,
         };
 

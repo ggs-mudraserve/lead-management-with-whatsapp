@@ -11,7 +11,7 @@ export type TeamOption = {
 };
 
 // Hardcoded based on ENUMs defined in databasedetails.md
-export const segmentOptions: string[] = ['PL', 'BL'];
+export const segmentOptions: string[] = ['PL', 'BL', 'PL_DIGITAL', 'BL_DIGITAL'];
 export const leadStageOptions: string[] = [
   'New',
   'Sent to Bank',

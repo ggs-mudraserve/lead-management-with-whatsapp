@@ -350,7 +350,7 @@ export default function MissedOpportunitiesTable() {
   }, [allReasons]);
 
   // Constants
-  const segmentOptions: Database['public']['Enums']['segment_type'][] = ['PL', 'BL'];
+  const segmentOptions: Database['public']['Enums']['segment_type'][] = ['PL', 'BL', 'PL_DIGITAL', 'BL_DIGITAL'];
   const canExport = profile && ['admin', 'backend'].includes(profile.role ?? '');
 
   // Export Handler (Client-side CSV)

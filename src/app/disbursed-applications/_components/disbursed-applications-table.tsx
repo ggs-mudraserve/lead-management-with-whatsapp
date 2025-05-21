@@ -257,7 +257,7 @@ export default function DisbursedApplicationsTable() {
    }, [teams]);
 
   // Constants
-  const segmentOptions: Database['public']['Enums']['segment_type'][] = ['PL', 'BL'];
+  const segmentOptions: Database['public']['Enums']['segment_type'][] = ['PL', 'BL', 'PL_DIGITAL', 'BL_DIGITAL'];
   const canExport = profile?.role === 'admin' || profile?.role === 'backend';
 
   // Calculate Total Approved Amount (Client-side)

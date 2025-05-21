@@ -87,6 +87,7 @@ export async function getBankApplications(
       includeUnassigned = true;
       // Remove 'unassigned' from the array and keep only valid UUIDs
       ownerIds = filters.owners.filter(id => id !== 'unassigned');
+      console.log('Unassigned filter selected. includeUnassigned:', includeUnassigned, 'ownerIds:', ownerIds);
     }
   }
 
@@ -94,10 +95,13 @@ export async function getBankApplications(
   // For non-admin users, we still exclude NULL lead owners unless they specifically asked for unassigned
   const shouldExcludeNullOwners = excludeNullOwners && !includeUnassigned;
 
+  // If only unassigned is selected, we need to pass a special parameter
+  const hasOnlyUnassignedSelected = includeUnassigned && (!ownerIds || ownerIds.length === 0);
+
   const params = {
     p_segments: filters.segments || null,
     p_stages: filters.stages || null,
-    p_owner_ids: ownerIds && ownerIds.length > 0 ? ownerIds : null,
+    p_owner_ids: hasOnlyUnassignedSelected ? ['unassigned'] : (ownerIds && ownerIds.length > 0 ? ownerIds : null),
     p_team_ids: filters.teams || null,
     p_login_start: filters.loginDateStart || null,
     p_login_end: filters.loginDateEnd || null,
@@ -107,6 +111,14 @@ export async function getBankApplications(
     p_rows_per_page: filters.rowsPerPage ?? 10,
     p_exclude_null_owners: shouldExcludeNullOwners
   };
+
+  console.log('Filter params:', {
+    hasOnlyUnassignedSelected,
+    includeUnassigned,
+    ownerIds,
+    shouldExcludeNullOwners,
+    p_owner_ids: params.p_owner_ids
+  });
 
   // Note: Special case for unassigned leads with no other owner IDs is handled in the database function
 
@@ -178,6 +190,7 @@ export async function getAllFilteredBankApplications(
         includeUnassigned = true;
         // Remove 'unassigned' from the array and keep only valid UUIDs
         ownerIds = filters.owners.filter(id => id !== 'unassigned');
+        console.log('Export: Unassigned filter selected. includeUnassigned:', includeUnassigned, 'ownerIds:', ownerIds);
       }
     }
 
@@ -185,10 +198,13 @@ export async function getAllFilteredBankApplications(
     // For non-admin users, we still exclude NULL lead owners unless they specifically asked for unassigned
     const shouldExcludeNullOwners = excludeNullOwners && !includeUnassigned;
 
+    // If only unassigned is selected, we need to pass a special parameter
+    const hasOnlyUnassignedSelected = includeUnassigned && (!ownerIds || ownerIds.length === 0);
+
     const params = {
         p_segments: filters.segments || null,
         p_stages: filters.stages || null,
-        p_owner_ids: ownerIds && ownerIds.length > 0 ? ownerIds : null,
+        p_owner_ids: hasOnlyUnassignedSelected ? ['unassigned'] : (ownerIds && ownerIds.length > 0 ? ownerIds : null),
         p_team_ids: filters.teams || null,
         p_login_start: filters.loginDateStart || null,
         p_login_end: filters.loginDateEnd || null,
@@ -198,6 +214,14 @@ export async function getAllFilteredBankApplications(
         p_rows_per_page: 2000000000,
         p_exclude_null_owners: shouldExcludeNullOwners
     };
+
+    console.log('Export Filter params:', {
+        hasOnlyUnassignedSelected,
+        includeUnassigned,
+        ownerIds,
+        shouldExcludeNullOwners,
+        p_owner_ids: params.p_owner_ids
+    });
 
     console.log('Calling RPC for export with params:', JSON.stringify(params, null, 2));
 

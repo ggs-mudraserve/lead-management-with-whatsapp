@@ -525,7 +525,7 @@ export type Database = {
         | "Disbursed"
         | "documents_incomplete"
       rental_status: "Rented" | "Owned"
-      segment_type: "PL" | "BL"
+      segment_type: "PL" | "BL" | "PL_DIGITAL" | "BL_DIGITAL"
       profile_segment: "PL" | "BL" | "PL_DIGITAL" | "BL_DIGITAL"
       user_role: "admin" | "backend" | "team_leader" | "agent"
     }
@@ -654,7 +654,7 @@ export const Constants = {
         "documents_incomplete",
       ],
       rental_status: ["Rented", "Owned"],
-      segment_type: ["PL", "BL"],
+      segment_type: ["PL", "BL", "PL_DIGITAL", "BL_DIGITAL"],
       profile_segment: ["PL", "BL", "PL_DIGITAL", "BL_DIGITAL"],
       user_role: ["admin", "backend", "team_leader", "agent"],
     },
