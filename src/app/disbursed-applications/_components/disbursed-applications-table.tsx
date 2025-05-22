@@ -37,6 +37,7 @@ import { format } from 'date-fns';
 import { Dayjs } from 'dayjs';
 import { Database } from '@/lib/supabase/database.types';
 import { useAuth } from '@/context/AuthContext';
+import { fetchDisbursedApplicationsWithBankFilter } from '@/lib/supabase/queries/disbursed-applications';
 
 // Type for Owners fetched for dropdown
 interface Owner {
@@ -74,6 +75,7 @@ interface Filters {
   segments: string[];
   ownerIds: string[];
   teamIds: string[];
+  bankNames: string[];
   disburseDateStart: Dayjs | null;
   disburseDateEnd: Dayjs | null;
 }
@@ -104,6 +106,15 @@ const fetchTeams = async (): Promise<Team[]> => {
     .order('name', { ascending: true });
   if (error) throw new Error('Failed to fetch teams');
   return data as Team[];
+};
+
+const fetchBanks = async (): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from('bank')
+    .select('name')
+    .order('name', { ascending: true });
+  if (error) throw new Error('Failed to fetch banks');
+  return (data || []).map(bank => bank.name);
 };
 
 const fetchDisbursedApplications = async (filters: Filters, sort: SortState): Promise<DisbursedApplicationData[]> => {
@@ -186,6 +197,14 @@ const fetchDisbursedApplications = async (filters: Filters, sort: SortState): Pr
     );
   }
 
+  // Apply Bank filter
+  if (filters.bankNames.length > 0) {
+    processedData = processedData.filter(app =>
+      app.bank_name && filters.bankNames.includes(app.bank_name)
+    );
+    console.log('Filtering by banks:', filters.bankNames);
+  }
+
   console.log(`Returning ${processedData.length} processed applications after client-side filtering`);
   return processedData as DisbursedApplicationData[];
 };
@@ -211,6 +230,7 @@ export default function DisbursedApplicationsTable() {
     segments: [],
     ownerIds: [],
     teamIds: [],
+    bankNames: [],
     disburseDateStart: null,
     disburseDateEnd: null,
   });
@@ -219,9 +239,17 @@ export default function DisbursedApplicationsTable() {
   // Queries
   const { data: owners, isLoading: isLoadingOwners } = useQuery<Owner[], Error>({ queryKey: ['activeOwners'], queryFn: fetchActiveOwners });
   const { data: teams, isLoading: isLoadingTeams } = useQuery<Team[], Error>({ queryKey: ['teams'], queryFn: fetchTeams });
+  const { data: banks, isLoading: isLoadingBanks } = useQuery<string[], Error>({ queryKey: ['banks'], queryFn: fetchBanks });
+  // Use the new function for bank filtering
   const { data, isLoading, error, isError } = useQuery<DisbursedApplicationData[], Error>({
     queryKey: ['disbursedApplications', filters, sort],
-    queryFn: () => fetchDisbursedApplications(filters, sort),
+    queryFn: () => {
+      // You can choose which function to use here
+      // For now, we'll continue using the existing function since it's been updated with bank filtering
+      // When you're ready to switch to the new implementation, uncomment the line below
+      // return fetchDisbursedApplicationsWithBankFilter(filters, sort);
+      return fetchDisbursedApplications(filters, sort);
+    },
   });
 
   // Handlers
@@ -320,7 +348,7 @@ export default function DisbursedApplicationsTable() {
             )}
         </Box>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel id="segment-filter-label" sx={{ fontWeight: 'bold' }}>Segment</InputLabel>
               <Select
@@ -342,7 +370,29 @@ export default function DisbursedApplicationsTable() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small" disabled={isLoadingBanks}>
+              <InputLabel id="bank-filter-label" sx={{ fontWeight: 'bold' }}>Bank</InputLabel>
+              <Select
+                labelId="bank-filter-label"
+                multiple
+                value={filters.bankNames}
+                onChange={(e) => handleFilterChange('bankNames', e.target.value as string[])}
+                input={<OutlinedInput label="Bank" />}
+                renderValue={(selected) => selected.join(', ')}
+                MenuProps={MenuProps}
+                sx={{ minWidth: '180px' }}
+              >
+                {(banks || []).map((bank) => (
+                  <MenuItem key={bank} value={bank}>
+                    <Checkbox checked={filters.bankNames.indexOf(bank) > -1} />
+                    <ListItemText primary={bank} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small" disabled={isLoadingOwners}>
               <InputLabel id="owner-filter-label" sx={{ fontWeight: 'bold' }}>Lead Owner</InputLabel>
               <Select
@@ -364,7 +414,7 @@ export default function DisbursedApplicationsTable() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
              <FormControl fullWidth size="small" disabled={isLoadingTeams}>
                <InputLabel id="team-filter-label" sx={{ fontWeight: 'bold' }}>Team</InputLabel>
                <Select
