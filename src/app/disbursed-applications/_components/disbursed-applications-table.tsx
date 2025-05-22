@@ -478,7 +478,7 @@ export default function DisbursedApplicationsTable() {
                    <TableCell>{row.team_name || 'N/A'}</TableCell>
                    <TableCell align="center">
                      <Tooltip title="View/Edit Application">
-                       <Link href={`/bank-applications/${row.id}/edit`} passHref>
+                       <Link href={`/bank-applications/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
                          <IconButton size="small" color="primary">
                            <EditIcon fontSize="small" />
                          </IconButton>

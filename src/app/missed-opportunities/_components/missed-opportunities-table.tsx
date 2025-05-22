@@ -604,7 +604,7 @@ export default function MissedOpportunitiesTable() {
                       </TableCell>
                       <TableCell align="center">
                         <Tooltip title="View/Edit Lead">
-                          <Link href={`/leads/${row.id}/edit`} passHref>
+                          <Link href={`/leads/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
                             <IconButton size="small" color="primary">
                               <EditIcon fontSize="small" />
                             </IconButton>

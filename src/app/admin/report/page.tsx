@@ -50,6 +50,7 @@ interface PerformanceReportRow {
     team_name: string | null;
     app_login_count: number;
     total_disbursed_amount: number;
+    under_process_count: number;
 }
 
 // Interface for filter state - dates are now strings 'YYYY-MM-DD' or empty/null
@@ -212,7 +213,7 @@ export default function PerformanceReportPage() {
             }
 
             const headers = [
-                'Segment', 'Lead Owner', 'Team', 'App Login Count', 'Total Disbursed Amount'
+                'Segment', 'Lead Owner', 'Team', 'App Login Count', 'Under Process', 'Total Disbursed Amount'
             ];
 
             const sheetData = [
@@ -222,6 +223,7 @@ export default function PerformanceReportPage() {
                     row.lead_owner_name || 'Unassigned',
                     row.team_name || 'N/A',
                     row.app_login_count,
+                    row.under_process_count,
                     row.total_disbursed_amount
                 ])
             ];
@@ -284,6 +286,7 @@ export default function PerformanceReportPage() {
         { id: 'lead_owner_name' as keyof PerformanceReportRow, label: 'Lead Owner', numeric: false, sortable: true },
         { id: 'team_name' as keyof PerformanceReportRow, label: 'Team', numeric: false, sortable: true },
         { id: 'app_login_count' as keyof PerformanceReportRow, label: 'App Login Count', numeric: true, sortable: true },
+        { id: 'under_process_count' as keyof PerformanceReportRow, label: 'Under Process', numeric: true, sortable: true },
         { id: 'total_disbursed_amount' as keyof PerformanceReportRow, label: 'Total Disbursed Amount', numeric: true, sortable: true },
     ];
 
@@ -482,6 +485,7 @@ export default function PerformanceReportPage() {
                                             <TableCell>{row.lead_owner_name ?? 'Unassigned'}</TableCell>
                                             <TableCell>{row.team_name ?? 'N/A'}</TableCell>
                                             <TableCell align="right">{row.app_login_count}</TableCell>
+                                            <TableCell align="right">{row.under_process_count}</TableCell>
                                             <TableCell align="right">
                                                 {row.total_disbursed_amount.toLocaleString('en-IN', {
                                                     style: 'currency',

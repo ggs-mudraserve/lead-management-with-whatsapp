@@ -167,7 +167,7 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
                     <TableCell>{row.lead_owner_name ?? '-'}</TableCell>
                     <TableCell>{row.team_name ?? '-'}</TableCell>
                     <TableCell align="center">
-                      <Link href={`/bank-applications/${row.id}/edit`} passHref>
+                      <Link href={`/bank-applications/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
                         <IconButton size="small" aria-label="edit application">
                           <EditIcon fontSize="small" />
                         </IconButton>
