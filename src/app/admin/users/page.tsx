@@ -134,26 +134,74 @@ export default function UserManagementPage() {
   // --- Toggle User Status Mutation ---
   const toggleUserStatusMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      const { error } = await supabase
-        .from('profile')
-        .update({ is_active: isActive })
-        .eq('id', userId);
+      // Start a transaction to update user status and handle lead ownership
+      let updatedLeadsCount = 0;
 
-      if (error) {
-        console.error("Error updating user status:", error);
-        throw new Error(error.message || 'Failed to update user status.');
+      // If setting user to inactive, we need to update leads
+      if (!isActive) {
+        // First update the user status
+        const { error: profileError } = await supabase
+          .from('profile')
+          .update({ is_active: isActive })
+          .eq('id', userId);
+
+        if (profileError) {
+          console.error("Error updating user status:", profileError);
+          throw new Error(profileError.message || 'Failed to update user status.');
+        }
+
+        // Then update all leads where this user is the lead_owner
+        const { data: updatedLeads, error: leadsError } = await supabase
+          .from('leads')
+          .update({ lead_owner: null })
+          .eq('lead_owner', userId)
+          .select('id');
+
+        if (leadsError) {
+          console.error("Error updating leads ownership:", leadsError);
+          throw new Error(leadsError.message || 'Failed to update leads ownership.');
+        }
+
+        updatedLeadsCount = updatedLeads?.length || 0;
+      } else {
+        // Just update the user status if activating the user
+        const { error } = await supabase
+          .from('profile')
+          .update({ is_active: isActive })
+          .eq('id', userId);
+
+        if (error) {
+          console.error("Error updating user status:", error);
+          throw new Error(error.message || 'Failed to update user status.');
+        }
       }
 
-      return { userId, isActive };
+      return { userId, isActive, updatedLeadsCount };
     },
     onSuccess: (data) => {
       const statusText = data.isActive ? 'activated' : 'deactivated';
+      let message = `User ${statusText} successfully!`;
+
+      // Add information about lead ownership changes if any leads were updated
+      if (!data.isActive && data.updatedLeadsCount > 0) {
+        message += ` ${data.updatedLeadsCount} lead${data.updatedLeadsCount !== 1 ? 's' : ''} unassigned.`;
+      }
+
       setSnackbar({
         open: true,
-        message: `User ${statusText} successfully!`,
+        message,
         severity: 'success'
       });
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); // Refresh user list
+
+      // Refresh user list and any other affected data
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+
+      // If leads were updated, we might want to invalidate other queries that depend on lead data
+      if (data.updatedLeadsCount > 0) {
+        queryClient.invalidateQueries({ queryKey: ['leads'] });
+        queryClient.invalidateQueries({ queryKey: ['allApplications'] });
+        queryClient.invalidateQueries({ queryKey: ['missedOpportunities'] });
+      }
     },
     onError: (error: Error) => {
       setSnackbar({
@@ -325,30 +373,43 @@ export default function UserManagementPage() {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <FormControl component="fieldset">
-                        <RadioGroup
-                          row
-                          value={user.is_active ? 'active' : 'inactive'}
-                          onChange={() => handleToggleUserStatus(user.id, user.is_active)}
-                        >
-                          <Tooltip title="Set user as active">
-                            <FormControlLabel
-                              value="active"
-                              control={<Radio size="small" />}
-                              label="Active"
-                              disabled={toggleUserStatusMutation.isPending}
-                            />
-                          </Tooltip>
-                          <Tooltip title="Set user as inactive">
-                            <FormControlLabel
-                              value="inactive"
-                              control={<Radio size="small" />}
-                              label="Inactive"
-                              disabled={toggleUserStatusMutation.isPending}
-                            />
-                          </Tooltip>
-                        </RadioGroup>
-                      </FormControl>
+                      <Box sx={{ position: 'relative' }}>
+                        <FormControl component="fieldset">
+                          <RadioGroup
+                            row
+                            value={user.is_active ? 'active' : 'inactive'}
+                            onChange={() => handleToggleUserStatus(user.id, user.is_active)}
+                          >
+                            <Tooltip title="Set user as active">
+                              <FormControlLabel
+                                value="active"
+                                control={<Radio size="small" />}
+                                label="Active"
+                                disabled={toggleUserStatusMutation.isPending}
+                              />
+                            </Tooltip>
+                            <Tooltip title="Set user as inactive">
+                              <FormControlLabel
+                                value="inactive"
+                                control={<Radio size="small" />}
+                                label="Inactive"
+                                disabled={toggleUserStatusMutation.isPending}
+                              />
+                            </Tooltip>
+                          </RadioGroup>
+                        </FormControl>
+                        {toggleUserStatusMutation.isPending && toggleUserStatusMutation.variables?.userId === user.id && (
+                          <CircularProgress
+                            size={20}
+                            sx={{
+                              position: 'absolute',
+                              top: '50%',
+                              right: '-25px',
+                              marginTop: '-10px',
+                            }}
+                          />
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Send password reset link">
