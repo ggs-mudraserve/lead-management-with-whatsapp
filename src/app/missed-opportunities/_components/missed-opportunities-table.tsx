@@ -121,7 +121,10 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
   let query = supabase
     .from('leads')
     .select(
-      `id, segment, first_name, last_name, created_at, lead_owner, bank_application!left( id ), lead_missed_reasons!left( reason_id ), profile!left(id, first_name, last_name, team_members!left(team!left(id, name)))`,
+      `id, segment, first_name, last_name, created_at, lead_owner, 
+       bank_application!left( id ), 
+       lead_missed_reasons!left( reason_id ), 
+       profile!left(id, first_name, last_name, team_members!left(team!left(id, name)))`,
       { count: 'exact' }
     )
 
@@ -387,8 +390,8 @@ export default function MissedOpportunitiesTable() {
         `"${row.segment ?? ''}"`,
         `"${row.first_name ?? ''}"`,
         `"${row.last_name ?? ''}"`,
-        `"${ownerMap[row.owner_id ?? ''] ?? ''}"`,
-        `"${teamMap[row.team_id ?? ''] ?? ''}"`,
+        `"${ownerMap[row.owner_id ?? ''] ?? 'Unassigned'}"`,
+        `"${teamMap[row.team_id ?? ''] ?? 'Unassigned'}"`,
         `"${formatDate(row.created_at)}"`,
         `"${row.selected_reason_ids.map(id => reasonMap[id]).join('; ')}"`
       ].join(','));
@@ -579,8 +582,8 @@ export default function MissedOpportunitiesTable() {
                       <TableCell>{row.segment ?? 'N/A'}</TableCell>
                       <TableCell>{row.first_name ?? 'N/A'}</TableCell>
                       <TableCell>{row.last_name ?? ''}</TableCell>
-                      <TableCell>{row.owner_first_name || row.owner_last_name ? `${row.owner_first_name ?? ''} ${row.owner_last_name ?? ''}`.trim() : 'N/A'}</TableCell>
-                      <TableCell>{row.team_name ?? 'N/A'}</TableCell>
+                      <TableCell>{row.owner_first_name || row.owner_last_name ? `${row.owner_first_name ?? ''} ${row.owner_last_name ?? ''}`.trim() : 'Unassigned'}</TableCell>
+                      <TableCell>{row.team_name ?? 'Unassigned'}</TableCell>
                       <TableCell>{formatDate(row.created_at)}</TableCell>
                       <TableCell>
                         <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>

@@ -13,21 +13,21 @@ export type Database = {
         Row: {
           bank_application_id: string
           created_at: string | null
-          created_by_user_id: string
+          created_by_user_id: string | null
           id: string
           note: string | null
         }
         Insert: {
           bank_application_id: string
           created_at?: string | null
-          created_by_user_id: string
+          created_by_user_id?: string | null
           id?: string
           note?: string | null
         }
         Update: {
           bank_application_id?: string
           created_at?: string | null
-          created_by_user_id?: string
+          created_by_user_id?: string | null
           id?: string
           note?: string | null
         }
@@ -40,11 +40,94 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "app_notes_bank_application_id_fkey"
+            columns: ["bank_application_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_notes_bank_application_id_fkey"
+            columns: ["bank_application_id"]
+            isOneToOne: false
+            referencedRelation: "v_disbursed_applications"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "app_notes_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
             foreignKeyName: "app_notes_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
             isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_notes_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+        ]
+      }
+      application_error_logs: {
+        Row: {
+          details: Json | null
+          error_code: string | null
+          error_message: string
+          error_source: string
+          id: string
+          resolved_status: boolean
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          details?: Json | null
+          error_code?: string | null
+          error_message: string
+          error_source: string
+          id?: string
+          resolved_status?: boolean
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          details?: Json | null
+          error_code?: string | null
+          error_message?: string
+          error_source?: string
+          id?: string
+          resolved_status?: boolean
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "application_error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
           },
         ]
       }
@@ -118,8 +201,503 @@ export type Database = {
             foreignKeyName: "bank_application_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "bank_application_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_application_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
+      bulk_send_details: {
+        Row: {
+          bulk_send_id: string
+          failure_reason: string | null
+          id: string
+          mobile_number_e164: string
+          status: Database["public"]["Enums"]["bulk_send_detail_status_enum"]
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          bulk_send_id: string
+          failure_reason?: string | null
+          id?: string
+          mobile_number_e164: string
+          status?: Database["public"]["Enums"]["bulk_send_detail_status_enum"]
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          bulk_send_id?: string
+          failure_reason?: string | null
+          id?: string
+          mobile_number_e164?: string
+          status?: Database["public"]["Enums"]["bulk_send_detail_status_enum"]
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_send_details_bulk_send_id_fkey"
+            columns: ["bulk_send_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_sends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bulk_sends: {
+        Row: {
+          admin_user_id: string
+          business_whatsapp_number_id: string | null
+          campaign_name: string | null
+          completed_at: string | null
+          created_at: string | null
+          csv_file_name: string | null
+          id: string
+          status: Database["public"]["Enums"]["bulk_send_status_enum"]
+          template_id: string
+          total_recipients: number
+          updated_at: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          business_whatsapp_number_id?: string | null
+          campaign_name?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          csv_file_name?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["bulk_send_status_enum"]
+          template_id: string
+          total_recipients: number
+          updated_at?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          business_whatsapp_number_id?: string | null
+          campaign_name?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          csv_file_name?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["bulk_send_status_enum"]
+          template_id?: string
+          total_recipients?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_sends_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "bulk_sends_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bulk_sends_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "bulk_sends_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates_cache"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bulk_sends_business_whatsapp_number"
+            columns: ["business_whatsapp_number_id"]
+            isOneToOne: false
+            referencedRelation: "business_whatsapp_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_whatsapp_numbers: {
+        Row: {
+          access_token: string | null
+          chatbot_endpoint_url: string | null
+          chatbot_identifier: string
+          created_at: string | null
+          current_mps_target: number | null
+          display_number: string
+          friendly_name: string | null
+          id: string
+          is_active: boolean
+          is_rate_capped_today: boolean
+          mps_target_updated_at: string | null
+          segment: Database["public"]["Enums"]["segment_type"]
+          updated_at: string | null
+          waba_id: string | null
+          waba_phone_number_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          chatbot_endpoint_url?: string | null
+          chatbot_identifier: string
+          created_at?: string | null
+          current_mps_target?: number | null
+          display_number: string
+          friendly_name?: string | null
+          id?: string
+          is_active?: boolean
+          is_rate_capped_today?: boolean
+          mps_target_updated_at?: string | null
+          segment: Database["public"]["Enums"]["segment_type"]
+          updated_at?: string | null
+          waba_id?: string | null
+          waba_phone_number_id: string
+        }
+        Update: {
+          access_token?: string | null
+          chatbot_endpoint_url?: string | null
+          chatbot_identifier?: string
+          created_at?: string | null
+          current_mps_target?: number | null
+          display_number?: string
+          friendly_name?: string | null
+          id?: string
+          is_active?: boolean
+          is_rate_capped_today?: boolean
+          mps_target_updated_at?: string | null
+          segment?: Database["public"]["Enums"]["segment_type"]
+          updated_at?: string | null
+          waba_id?: string | null
+          waba_phone_number_id?: string
+        }
+        Relationships: []
+      }
+      conversation_assignment_audit: {
+        Row: {
+          actor_id: string
+          changed_at: string
+          conversation_id: string
+          id: number
+          new_agent_id: string | null
+          old_agent_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          actor_id: string
+          changed_at?: string
+          conversation_id: string
+          id?: number
+          new_agent_id?: string | null
+          old_agent_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          actor_id?: string
+          changed_at?: string
+          conversation_id?: string
+          id?: number
+          new_agent_id?: string | null
+          old_agent_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_assignment_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_new_agent_id_fkey"
+            columns: ["new_agent_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_new_agent_id_fkey"
+            columns: ["new_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_new_agent_id_fkey"
+            columns: ["new_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_old_agent_id_fkey"
+            columns: ["old_agent_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_old_agent_id_fkey"
+            columns: ["old_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_assignment_audit_old_agent_id_fkey"
+            columns: ["old_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+        ]
+      }
+      conversation_status_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          conversation_id: string
+          id: number
+          new_status: Database["public"]["Enums"]["conversation_status_enum"]
+          old_status: Database["public"]["Enums"]["conversation_status_enum"]
+          reason: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          conversation_id: string
+          id?: number
+          new_status: Database["public"]["Enums"]["conversation_status_enum"]
+          old_status: Database["public"]["Enums"]["conversation_status_enum"]
+          reason?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          conversation_id?: string
+          id?: number
+          new_status?: Database["public"]["Enums"]["conversation_status_enum"]
+          old_status?: Database["public"]["Enums"]["conversation_status_enum"]
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_status_audit_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_status_audit_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          assigned_agent_id: string | null
+          business_whatsapp_number_id: string
+          contact_e164_phone: string
+          created_at: string | null
+          id: string
+          is_chatbot_active: boolean
+          last_customer_message_at: string | null
+          last_message_at: string | null
+          lead_id: string | null
+          segment: Database["public"]["Enums"]["segment_type"]
+          status: Database["public"]["Enums"]["conversation_status_enum"]
+          tags: string[] | null
+          updated_at: string | null
+          version: number
+        }
+        Insert: {
+          assigned_agent_id?: string | null
+          business_whatsapp_number_id: string
+          contact_e164_phone: string
+          created_at?: string | null
+          id?: string
+          is_chatbot_active?: boolean
+          last_customer_message_at?: string | null
+          last_message_at?: string | null
+          lead_id?: string | null
+          segment: Database["public"]["Enums"]["segment_type"]
+          status?: Database["public"]["Enums"]["conversation_status_enum"]
+          tags?: string[] | null
+          updated_at?: string | null
+          version?: number
+        }
+        Update: {
+          assigned_agent_id?: string | null
+          business_whatsapp_number_id?: string
+          contact_e164_phone?: string
+          created_at?: string | null
+          id?: string
+          is_chatbot_active?: boolean
+          last_customer_message_at?: string | null
+          last_message_at?: string | null
+          lead_id?: string | null
+          segment?: Database["public"]["Enums"]["segment_type"]
+          status?: Database["public"]["Enums"]["conversation_status_enum"]
+          tags?: string[] | null
+          updated_at?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversations_business_whatsapp_number_id_fkey"
+            columns: ["business_whatsapp_number_id"]
+            isOneToOne: false
+            referencedRelation: "business_whatsapp_numbers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
+      internal_notes: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          note_content: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          note_content: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          note_content?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_notes_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_notes_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "internal_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
           },
         ]
       }
@@ -131,7 +709,7 @@ export type Database = {
           id: string
           lead_id: string
           storage_object_path: string
-          uploaded_by_user_id: string
+          uploaded_by_user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -140,7 +718,7 @@ export type Database = {
           id?: string
           lead_id: string
           storage_object_path: string
-          uploaded_by_user_id: string
+          uploaded_by_user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -149,9 +727,16 @@ export type Database = {
           id?: string
           lead_id?: string
           storage_object_path?: string
-          uploaded_by_user_id?: string
+          uploaded_by_user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lead_documents_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_id"]
+          },
           {
             foreignKeyName: "lead_documents_lead_id_fkey"
             columns: ["lead_id"]
@@ -160,11 +745,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lead_documents_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_documents_uploaded_by_user_id_fkey"
+            columns: ["uploaded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
             foreignKeyName: "lead_documents_uploaded_by_user_id_fkey"
             columns: ["uploaded_by_user_id"]
             isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_documents_uploaded_by_user_id_fkey"
+            columns: ["uploaded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
           },
         ]
       }
@@ -192,8 +798,22 @@ export type Database = {
             foreignKeyName: "lead_missed_reasons_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_missed_reasons_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_missed_reasons_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "lead_missed_reasons_reason_id_fkey"
@@ -207,21 +827,21 @@ export type Database = {
       lead_notes: {
         Row: {
           created_at: string | null
-          created_by_user_id: string
+          created_by_user_id: string | null
           id: string
           lead_id: string
           note: string | null
         }
         Insert: {
           created_at?: string | null
-          created_by_user_id: string
+          created_by_user_id?: string | null
           id?: string
           lead_id: string
           note?: string | null
         }
         Update: {
           created_at?: string | null
-          created_by_user_id?: string
+          created_by_user_id?: string | null
           id?: string
           lead_id?: string
           note?: string | null
@@ -231,8 +851,29 @@ export type Database = {
             foreignKeyName: "lead_notes_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
             isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "lead_notes_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notes_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "lead_notes_lead_id_fkey"
@@ -240,6 +881,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -249,16 +897,21 @@ export type Database = {
           created_at: string | null
           current_pin_code: string | null
           current_resi_address: string | null
+          date_of_joining: string | null
+          designation: string | null
           dob: string | null
+          father_name: string | null
           first_name: string
           id: string
           last_name: string | null
           lead_owner: string | null
           mobile_number: string
           mother_name: string | null
+          nature_of_business: string | null
           net_salary: number | null
           office_address: string | null
           official_mail_id: string | null
+          pan: string | null
           permanent_address: string | null
           personal_mail_id: string | null
           reference_1_address: string | null
@@ -270,6 +923,7 @@ export type Database = {
           rented_owned: Database["public"]["Enums"]["rental_status"] | null
           segment: Database["public"]["Enums"]["segment_type"] | null
           spouse_name: string | null
+          turnover: number | null
           updated_at: string | null
         }
         Insert: {
@@ -277,16 +931,21 @@ export type Database = {
           created_at?: string | null
           current_pin_code?: string | null
           current_resi_address?: string | null
+          date_of_joining?: string | null
+          designation?: string | null
           dob?: string | null
+          father_name?: string | null
           first_name: string
           id?: string
           last_name?: string | null
           lead_owner?: string | null
           mobile_number: string
           mother_name?: string | null
+          nature_of_business?: string | null
           net_salary?: number | null
           office_address?: string | null
           official_mail_id?: string | null
+          pan?: string | null
           permanent_address?: string | null
           personal_mail_id?: string | null
           reference_1_address?: string | null
@@ -296,8 +955,9 @@ export type Database = {
           reference_2_name?: string | null
           reference_2_phone?: string | null
           rented_owned?: Database["public"]["Enums"]["rental_status"] | null
-          spouse_name?: string | null
           segment?: Database["public"]["Enums"]["segment_type"] | null
+          spouse_name?: string | null
+          turnover?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -305,16 +965,21 @@ export type Database = {
           created_at?: string | null
           current_pin_code?: string | null
           current_resi_address?: string | null
+          date_of_joining?: string | null
+          designation?: string | null
           dob?: string | null
+          father_name?: string | null
           first_name?: string
           id?: string
           last_name?: string | null
           lead_owner?: string | null
           mobile_number?: string
           mother_name?: string | null
+          nature_of_business?: string | null
           net_salary?: number | null
           office_address?: string | null
           official_mail_id?: string | null
+          pan?: string | null
           permanent_address?: string | null
           personal_mail_id?: string | null
           reference_1_address?: string | null
@@ -326,6 +991,7 @@ export type Database = {
           rented_owned?: Database["public"]["Enums"]["rental_status"] | null
           segment?: Database["public"]["Enums"]["segment_type"] | null
           spouse_name?: string | null
+          turnover?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -333,10 +999,431 @@ export type Database = {
             foreignKeyName: "leads_lead_owner_fkey"
             columns: ["lead_owner"]
             isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
         ]
+      }
+      message_notifications: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: []
+      }
+      message_queue: {
+        Row: {
+          attempt_count: number
+          bulk_send_id: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          last_attempt_at: string | null
+          next_attempt_at: string
+          recipient_e164_phone: string
+          status: Database["public"]["Enums"]["message_queue_status_enum"]
+          template_variables_used: Json | null
+        }
+        Insert: {
+          attempt_count?: number
+          bulk_send_id: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          last_attempt_at?: string | null
+          next_attempt_at?: string
+          recipient_e164_phone: string
+          status?: Database["public"]["Enums"]["message_queue_status_enum"]
+          template_variables_used?: Json | null
+        }
+        Update: {
+          attempt_count?: number
+          bulk_send_id?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          last_attempt_at?: string | null
+          next_attempt_at?: string
+          recipient_e164_phone?: string
+          status?: Database["public"]["Enums"]["message_queue_status_enum"]
+          template_variables_used?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_queue_bulk_send_id_fkey"
+            columns: ["bulk_send_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_sends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_templates_cache: {
+        Row: {
+          category: string
+          components_json: Json
+          id: string
+          is_deleted: boolean | null
+          language: string
+          last_synced_at: string | null
+          name: string
+          status_from_whatsapp: string
+          waba_id: string | null
+        }
+        Insert: {
+          category: string
+          components_json: Json
+          id?: string
+          is_deleted?: boolean | null
+          language: string
+          last_synced_at?: string | null
+          name: string
+          status_from_whatsapp: string
+          waba_id?: string | null
+        }
+        Update: {
+          category?: string
+          components_json?: Json
+          id?: string
+          is_deleted?: boolean | null
+          language?: string
+          last_synced_at?: string | null
+          name?: string
+          status_from_whatsapp?: string
+          waba_id?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename: string | null
+          customer_media_mime_type: string | null
+          customer_media_whatsapp_id: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used: string | null
+          template_variables_used: Json | null
+          text_content: string | null
+          timestamp: string
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp: string
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          content_type?: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id?: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["message_sender_type_enum"]
+          status?: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp?: string
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages_y2025m05: {
+        Row: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename: string | null
+          customer_media_mime_type: string | null
+          customer_media_whatsapp_id: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used: string | null
+          template_variables_used: Json | null
+          text_content: string | null
+          timestamp: string
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp: string
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          content_type?: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id?: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["message_sender_type_enum"]
+          status?: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp?: string
+          whatsapp_message_id?: string | null
+        }
+        Relationships: []
+      }
+      messages_y2025m06: {
+        Row: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename: string | null
+          customer_media_mime_type: string | null
+          customer_media_whatsapp_id: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used: string | null
+          template_variables_used: Json | null
+          text_content: string | null
+          timestamp: string
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp: string
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          content_type?: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id?: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["message_sender_type_enum"]
+          status?: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp?: string
+          whatsapp_message_id?: string | null
+        }
+        Relationships: []
+      }
+      messages_y2025m07: {
+        Row: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename: string | null
+          customer_media_mime_type: string | null
+          customer_media_whatsapp_id: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used: string | null
+          template_variables_used: Json | null
+          text_content: string | null
+          timestamp: string
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp: string
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          content_type?: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id?: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["message_sender_type_enum"]
+          status?: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp?: string
+          whatsapp_message_id?: string | null
+        }
+        Relationships: []
+      }
+      messages_y2025m08: {
+        Row: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename: string | null
+          customer_media_mime_type: string | null
+          customer_media_whatsapp_id: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used: string | null
+          template_variables_used: Json | null
+          text_content: string | null
+          timestamp: string
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          status: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp: string
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          content_type?: Database["public"]["Enums"]["message_content_type_enum"]
+          conversation_id?: string
+          customer_media_filename?: string | null
+          customer_media_mime_type?: string | null
+          customer_media_whatsapp_id?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["message_sender_type_enum"]
+          status?: Database["public"]["Enums"]["message_delivery_status_enum"]
+          template_name_used?: string | null
+          template_variables_used?: Json | null
+          text_content?: string | null
+          timestamp?: string
+          whatsapp_message_id?: string | null
+        }
+        Relationships: []
       }
       missed_opportunity: {
         Row: {
@@ -361,39 +1448,66 @@ export type Database = {
       }
       profile: {
         Row: {
+          android_login: boolean
+          bank_account_no: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
           created_at: string | null
+          device_id: string | null
           email: string | null
+          emp_code: string
+          extra_updated_at: string | null
           first_name: string | null
           id: string
           is_active: boolean
+          last_chat_assigned_at: string | null
           last_name: string | null
-          role: Database["public"]["Enums"]["user_role"] | null
-          segment: Database["public"]["Enums"]["profile_segment"] | null
           present_today: boolean
+          role: Database["public"]["Enums"]["user_role"] | null
+          salary_current: number | null
+          segment: Database["public"]["Enums"]["segment_type"] | null
           updated_at: string | null
         }
         Insert: {
+          android_login?: boolean
+          bank_account_no?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           created_at?: string | null
+          device_id?: string | null
           email?: string | null
+          emp_code: string
+          extra_updated_at?: string | null
           first_name?: string | null
           id: string
           is_active?: boolean
+          last_chat_assigned_at?: string | null
           last_name?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
-          segment?: Database["public"]["Enums"]["profile_segment"] | null
           present_today?: boolean
+          role?: Database["public"]["Enums"]["user_role"] | null
+          salary_current?: number | null
+          segment?: Database["public"]["Enums"]["segment_type"] | null
           updated_at?: string | null
         }
         Update: {
+          android_login?: boolean
+          bank_account_no?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           created_at?: string | null
+          device_id?: string | null
           email?: string | null
+          emp_code?: string
+          extra_updated_at?: string | null
           first_name?: string | null
           id?: string
           is_active?: boolean
+          last_chat_assigned_at?: string | null
           last_name?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
-          segment?: Database["public"]["Enums"]["profile_segment"] | null
           present_today?: boolean
+          role?: Database["public"]["Enums"]["user_role"] | null
+          salary_current?: number | null
+          segment?: Database["public"]["Enums"]["segment_type"] | null
           updated_at?: string | null
         }
         Relationships: []
@@ -447,19 +1561,249 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["team_id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
             foreignKeyName: "team_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      conversation_with_lead_owner: {
+        Row: {
+          assigned_agent_id: string | null
+          business_whatsapp_number_id: string | null
+          contact_e164_phone: string | null
+          created_at: string | null
+          id: string | null
+          last_customer_message_at: string | null
+          last_message_at: string | null
+          lead_first_name: string | null
+          lead_id: string | null
+          lead_last_name: string | null
+          lead_owner: string | null
+          lead_owner_email: string | null
+          lead_owner_first_name: string | null
+          lead_owner_id: string | null
+          lead_owner_last_name: string | null
+          lead_owner_role: Database["public"]["Enums"]["user_role"] | null
+          segment: Database["public"]["Enums"]["segment_type"] | null
+          status: Database["public"]["Enums"]["conversation_status_enum"] | null
+          updated_at: string | null
+          version: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "conversations_business_whatsapp_number_id_fkey"
+            columns: ["business_whatsapp_number_id"]
+            isOneToOne: false
+            referencedRelation: "business_whatsapp_numbers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+        ]
+      }
+      v_all_applications: {
+        Row: {
+          approved_amount: number | null
+          bank_name: string | null
+          id: string | null
+          lead_first_name: string | null
+          lead_id: string | null
+          lead_last_name: string | null
+          lead_owner_id: string | null
+          lead_owner_name: string | null
+          lead_segment: Database["public"]["Enums"]["segment_type"] | null
+          lead_stage: Database["public"]["Enums"]["lead_stage"] | null
+          login_date: string | null
+          owner_is_active: boolean | null
+          team_id: string | null
+          team_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_application_bank_name_fkey"
+            columns: ["bank_name"]
+            isOneToOne: false
+            referencedRelation: "bank"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
+      v_disbursed_applications: {
+        Row: {
+          application_created_at: string | null
+          application_id: string | null
+          application_updated_at: string | null
+          applied_amount: number | null
+          approved_amount: number | null
+          bank_name: string | null
+          disburse_date: string | null
+          first_name: string | null
+          last_name: string | null
+          lead_id: string | null
+          lead_owner: string | null
+          lead_stage: Database["public"]["Enums"]["lead_stage"] | null
+          loan_app_number: string | null
+          login_date: string | null
+          mobile_number: string | null
+          owner_email: string | null
+          owner_first_name: string | null
+          owner_last_name: string | null
+          segment: Database["public"]["Enums"]["segment_type"] | null
+          team_id: string | null
+          team_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_application_bank_name_fkey"
+            columns: ["bank_name"]
+            isOneToOne: false
+            referencedRelation: "bank"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "bank_application_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "bank_application_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_application_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "conversation_with_lead_owner"
+            referencedColumns: ["lead_owner_id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_lead_owner_fkey"
+            columns: ["lead_owner"]
+            isOneToOne: false
+            referencedRelation: "v_all_applications"
+            referencedColumns: ["lead_owner_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      acquire_rr_lock: {
+        Args: { p_key: number }
+        Returns: boolean
+      }
+      assign_conversation_and_update_related: {
+        Args: {
+          p_actor_id: string
+          p_conversation_id: string
+          p_new_assignee_id?: string
+          p_reason?: string
+          p_version?: number
+        }
+        Returns: Json
+      }
+      auth_test: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      can_agent_insert_into_conversation: {
+        Args: { agent_id: string; target_conversation_id: string }
+        Returns: boolean
+      }
+      can_agent_update_conversation_status: {
+        Args:
+          | { agent_id: string; target_conversation_id: string }
+          | {
+              p_agent_id: string
+              p_convo_id: string
+              p_new_status: Database["public"]["Enums"]["conversation_status_enum"]
+            }
+        Returns: boolean
+      }
       can_user_access_bank_application: {
         Args: { requesting_user_id: string; target_bank_app_id: string }
         Returns: boolean
@@ -471,6 +1815,89 @@ export type Database = {
       check_lead_status_by_mobile: {
         Args: { search_mobile: string }
         Returns: Json
+      }
+      close_idle_conversations: {
+        Args: { p_hours?: number }
+        Returns: number
+      }
+      converttoe164: {
+        Args: { local_number: string; default_country_code?: string }
+        Returns: string
+      }
+      converttolocalformat: {
+        Args: { phone_param: string }
+        Returns: string
+      }
+      get_all_filtered_applications: {
+        Args: {
+          p_segments?: string[]
+          p_stages?: string[]
+          p_owner_ids?: string[]
+          p_team_ids?: string[]
+          p_login_start?: string
+          p_login_end?: string
+          p_sort_column?: string
+          p_sort_direction?: string
+          p_page?: number
+          p_rows_per_page?: number
+          p_exclude_null_owners?: boolean
+        }
+        Returns: Json
+      }
+      get_custom_performance_report: {
+        Args: {
+          p_segments?: string[]
+          p_owner_ids?: string[]
+          p_team_ids?: string[]
+          p_date_start?: string
+          p_date_end?: string
+        }
+        Returns: {
+          segment: Database["public"]["Enums"]["segment_type"]
+          lead_owner_id: string
+          lead_owner_name: string
+          team_id: string
+          team_name: string
+          app_login_count: number
+          total_disbursed_amount: number
+          under_process_count: number
+        }[]
+      }
+      get_filtered_disbursed_applications: {
+        Args: {
+          p_segments?: string[]
+          p_owner_ids?: string[]
+          p_team_ids?: string[]
+          p_disburse_date_start?: string
+          p_disburse_date_end?: string
+          p_sort_by?: string
+          p_sort_order?: string
+          p_page?: number
+          p_page_size?: number
+        }
+        Returns: Json
+      }
+      get_or_create_conversation_for_contact: {
+        Args: {
+          p_recipient_phone_e164: string
+          p_business_number_id: string
+          p_business_segment: Database["public"]["Enums"]["segment_type"]
+          p_customer_name?: string
+        }
+        Returns: string
+      }
+      get_recent_bulk_campaigns_with_stats: {
+        Args: { limit_count?: number }
+        Returns: {
+          id: string
+          campaign_name: string
+          status: Database["public"]["Enums"]["bulk_send_status_enum"]
+          total_recipients: number
+          created_at: string
+          updated_at: string
+          sent_count: number
+          failed_count: number
+        }[]
       }
       get_user_role: {
         Args: { user_id: string }
@@ -485,6 +1912,43 @@ export type Database = {
         }
         Returns: Json
       }
+      handle_whatsapp_message: {
+        Args: {
+          p_waba_phone_number_id: string
+          p_customer_e164_phone: string
+          p_customer_name: string
+          p_whatsapp_message_id: string
+          p_message_type: string
+          p_message_timestamp_epoch: number
+          p_text_content?: string
+          p_media_id?: string
+          p_media_mime_type?: string
+          p_media_filename?: string
+        }
+        Returns: Json
+      }
+      initiate_bulk_send_campaign: {
+        Args: {
+          p_admin_user_id: string
+          p_campaign_name: string
+          p_template_id: string
+          p_business_whatsapp_number_id: string
+          p_recipients_data: Json
+        }
+        Returns: Json
+      }
+      insert_agent_message: {
+        Args: {
+          p_conversation_id: string
+          p_agent_id: string
+          p_whatsapp_id: string
+          p_content_type: string
+          p_text_content?: string
+          p_template_name?: string
+          p_template_vars?: Json
+        }
+        Returns: Json
+      }
       insert_bank_application: {
         Args: {
           p_lead_id: string
@@ -496,9 +1960,68 @@ export type Database = {
         }
         Returns: Json
       }
+      insert_message: {
+        Args: {
+          p_conversation_id: string
+          p_content_type: Database["public"]["Enums"]["message_content_type_enum"]
+          p_sender_type: Database["public"]["Enums"]["message_sender_type_enum"]
+          p_text_content?: string
+          p_template_name?: string
+          p_template_variables?: Json
+          p_media_url?: string
+          p_whatsapp_message_id?: string
+          p_sender_id_override?: string
+          p_initial_status?: Database["public"]["Enums"]["message_delivery_status_enum"]
+          p_customer_media_whatsapp_id?: string
+          p_customer_media_filename?: string
+          p_customer_media_mime_type?: string
+        }
+        Returns: string
+      }
+      internal_find_or_create_lead_for_whatsapp: {
+        Args: {
+          p_customer_phone_e164: string
+          p_segment: Database["public"]["Enums"]["segment_type"]
+          p_customer_name: string
+        }
+        Returns: string
+      }
       is_owner_in_requesting_user_team: {
         Args: { requesting_user_id: string; target_lead_owner_id: string }
         Returns: boolean
+      }
+      manage_message_partitions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      select_now_utc: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      set_conversation_status: {
+        Args:
+          | {
+              p_agent_id: string
+              p_convo_id: string
+              p_target_status: Database["public"]["Enums"]["conversation_status_enum"]
+              p_close_reason?: string
+            }
+          | {
+              p_agent_id: string
+              p_convo_id: string
+              p_target_status: Database["public"]["Enums"]["conversation_status_enum"]
+              p_reason?: string
+              p_version?: number
+            }
+        Returns: Json
+      }
+      test_process_single_message: {
+        Args: { message_id: string }
+        Returns: Json
+      }
+      trigger_bulk_processor_http: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       update_bank_application: {
         Args: {
@@ -515,19 +2038,42 @@ export type Database = {
       }
     }
     Enums: {
+      bulk_send_detail_status_enum: "sent" | "failed" | "skipped" | "pending"
+      bulk_send_status_enum: "queued" | "processing" | "completed" | "failed"
+      conversation_status_enum: "open" | "closed"
       lead_stage:
         | "New"
-        | "Sent to Bank"
         | "Under Review"
         | "Reject Review"
         | "Reject"
         | "Approved"
         | "Disbursed"
         | "documents_incomplete"
+        | "Sent to Bank"
+      message_content_type_enum:
+        | "text"
+        | "image"
+        | "document"
+        | "template"
+        | "system_notification"
+      message_delivery_status_enum:
+        | "sending"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
+        | "received"
+      message_queue_status_enum: "pending" | "processing" | "retry_queued"
+      message_sender_type_enum: "customer" | "agent" | "chatbot" | "system"
       rental_status: "Rented" | "Owned"
       segment_type: "PL" | "BL" | "PL_DIGITAL" | "BL_DIGITAL"
-      profile_segment: "PL" | "BL" | "PL_DIGITAL" | "BL_DIGITAL"
-      user_role: "admin" | "backend" | "team_leader" | "agent"
+      user_role:
+        | "admin"
+        | "backend"
+        | "team_leader"
+        | "agent"
+        | "system"
+        | "chatbot"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -643,20 +2189,46 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      bulk_send_detail_status_enum: ["sent", "failed", "skipped", "pending"],
+      bulk_send_status_enum: ["queued", "processing", "completed", "failed"],
+      conversation_status_enum: ["open", "closed"],
       lead_stage: [
         "New",
-        "Sent to Bank",
         "Under Review",
         "Reject Review",
         "Reject",
         "Approved",
         "Disbursed",
         "documents_incomplete",
+        "Sent to Bank",
       ],
+      message_content_type_enum: [
+        "text",
+        "image",
+        "document",
+        "template",
+        "system_notification",
+      ],
+      message_delivery_status_enum: [
+        "sending",
+        "sent",
+        "delivered",
+        "read",
+        "failed",
+        "received",
+      ],
+      message_queue_status_enum: ["pending", "processing", "retry_queued"],
+      message_sender_type_enum: ["customer", "agent", "chatbot", "system"],
       rental_status: ["Rented", "Owned"],
       segment_type: ["PL", "BL", "PL_DIGITAL", "BL_DIGITAL"],
-      profile_segment: ["PL", "BL", "PL_DIGITAL", "BL_DIGITAL"],
-      user_role: ["admin", "backend", "team_leader", "agent"],
+      user_role: [
+        "admin",
+        "backend",
+        "team_leader",
+        "agent",
+        "system",
+        "chatbot",
+      ],
     },
   },
 } as const

@@ -8,8 +8,8 @@ export async function POST(request: NextRequest) {
 
     // Get the request body
     const body = await request.json();
-    const { email, password, first_name, last_name, role, segment } = body;
-    console.log('API route: Request body parsed', { email, first_name, last_name, role, segment });
+    const { email, password, first_name, last_name, role, segment, emp_code, salary_current } = body;
+    console.log('API route: Request body parsed', { email, first_name, last_name, role, segment, emp_code, salary_current });
 
     // Validate required fields
     if (!email || !password || !first_name || !role) {
@@ -60,22 +60,69 @@ export async function POST(request: NextRequest) {
 
       const userId = authData.user.id;
 
+      // Check if emp_code is provided and unique
+      if (emp_code && emp_code.trim()) {
+        console.log('API route: Checking emp_code uniqueness');
+        const { data: existingEmpCode, error: empCodeError } = await adminClient
+          .from('profile')
+          .select('id')
+          .eq('emp_code', emp_code.trim())
+          .single();
+
+        if (empCodeError && empCodeError.code !== 'PGRST116') { // PGRST116 = no rows found
+          console.error('API route: Error checking emp_code:', empCodeError);
+          return NextResponse.json(
+            { error: 'Error validating employee code' },
+            { status: 500 }
+          );
+        }
+
+        if (existingEmpCode) {
+          console.log('API route: Employee code already exists');
+          return NextResponse.json(
+            { error: 'Employee code already exists' },
+            { status: 400 }
+          );
+        }
+      }
+
       // Update the profile with additional information
       // Note: A profile record is automatically created by Supabase when a user is created
       console.log('API route: Updating profile with additional information');
 
       // Update the profile with the admin client
       console.log('API route: Using admin client to update profile');
+      
+      // Build the update object dynamically
+      const updateData: {
+        first_name: string;
+        last_name: string | null;
+        role: string;
+        segment: string | null;
+        emp_code?: string;
+        salary_current?: number;
+      } = {
+        first_name,
+        last_name: last_name || null,
+        role,
+        segment, // Add the segment field
+        // email is automatically set by trigger/auth
+        // is_active defaults to true
+      };
+      
+      // Add emp_code if provided (otherwise use auto-generated one)
+      if (emp_code && emp_code.trim()) {
+        updateData.emp_code = emp_code.trim();
+      }
+      
+      // Add salary if provided
+      if (salary_current !== undefined && salary_current !== null) {
+        updateData.salary_current = Number(salary_current);
+      }
+      
       const { error: profileError } = await adminClient
         .from('profile')
-        .update({
-          first_name,
-          last_name: last_name || null,
-          role,
-          segment, // Add the segment field
-          // email is automatically set by trigger/auth
-          // is_active defaults to true
-        })
+        .update(updateData)
         .eq('id', userId);
 
       if (profileError) {

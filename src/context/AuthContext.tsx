@@ -20,6 +20,15 @@ interface UserProfile {
   present_today: boolean;
   created_at?: string;
   updated_at?: string;
+  // New fields from profile table extension
+  device_id?: string | null;
+  android_login?: boolean;
+  bank_account_no?: string | null;
+  bank_ifsc?: string | null;
+  bank_name?: string | null;
+  emp_code?: string;
+  salary_current?: number | null;
+  extra_updated_at?: string | null;
 }
 
 interface AuthContextType {

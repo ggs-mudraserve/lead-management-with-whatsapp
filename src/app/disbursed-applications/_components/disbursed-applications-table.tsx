@@ -123,7 +123,10 @@ const fetchDisbursedApplications = async (filters: Filters, sort: SortState): Pr
     .from('bank_application')
     .select(`
       id, lead_id, loan_app_number, approved_amount, bank_name, lead_stage, disburse_date,
-      leads!inner ( segment, first_name, last_name, lead_owner, profile!left ( id, first_name, last_name, team_members!left( team!left( id, name ) ) ) )
+      leads!inner ( 
+        segment, first_name, last_name, lead_owner,
+        profile!left ( id, first_name, last_name, team_members!left( team!left( id, name ) ) )
+      )
     `, { count: 'exact' })
     .eq('lead_stage', 'Disbursed');
 
@@ -310,8 +313,8 @@ export default function DisbursedApplicationsTable() {
         row.approved_amount || 0,
         `"${row.bank_name || ''}"`,
         `"${row.disburse_date ? formatDate(row.disburse_date) : 'N/A'}"`,
-        `"${row.owner_first_name || row.owner_last_name ? `${row.owner_first_name || ''} ${row.owner_last_name || ''}`.trim() : 'N/A'}"`,
-        `"${row.team_name || 'N/A'}"`
+        `"${row.owner_first_name || row.owner_last_name ? `${row.owner_first_name || ''} ${row.owner_last_name || ''}`.trim() : 'Unassigned'}"`,
+        `"${row.team_name || 'Unassigned'}"`
     ].join(','));
 
     const csvContent = [headers.join(','), ...rows].join('\n');
@@ -523,9 +526,9 @@ export default function DisbursedApplicationsTable() {
                    <TableCell>
                      {row.owner_first_name || row.owner_last_name
                        ? `${row.owner_first_name || ''} ${row.owner_last_name || ''}`.trim()
-                       : 'N/A'}
+                       : 'Unassigned'}
                    </TableCell>
-                   <TableCell>{row.team_name || 'N/A'}</TableCell>
+                   <TableCell>{row.team_name || 'Unassigned'}</TableCell>
                    <TableCell align="center">
                      <Tooltip title="View/Edit Application">
                        <Link href={`/bank-applications/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">

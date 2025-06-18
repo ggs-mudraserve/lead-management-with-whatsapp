@@ -104,6 +104,8 @@ export default function UserManagementPage() {
           last_name: formData.last_name,
           role: formData.role,
           segment: formData.segment,
+          emp_code: formData.emp_code,
+          salary_current: formData.salary_current,
         }),
       });
 
@@ -134,49 +136,29 @@ export default function UserManagementPage() {
   // --- Toggle User Status Mutation ---
   const toggleUserStatusMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      // Start a transaction to update user status and handle lead ownership
-      let updatedLeadsCount = 0;
+      // Call our server-side API endpoint to update user status
+      const response = await fetch(`/api/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: isActive }),
+      });
 
-      // If setting user to inactive, we need to update leads
-      if (!isActive) {
-        // First update the user status
-        const { error: profileError } = await supabase
-          .from('profile')
-          .update({ is_active: isActive })
-          .eq('id', userId);
+      // Parse the response
+      const result = await response.json();
 
-        if (profileError) {
-          console.error("Error updating user status:", profileError);
-          throw new Error(profileError.message || 'Failed to update user status.');
-        }
-
-        // Then update all leads where this user is the lead_owner
-        const { data: updatedLeads, error: leadsError } = await supabase
-          .from('leads')
-          .update({ lead_owner: null })
-          .eq('lead_owner', userId)
-          .select('id');
-
-        if (leadsError) {
-          console.error("Error updating leads ownership:", leadsError);
-          throw new Error(leadsError.message || 'Failed to update leads ownership.');
-        }
-
-        updatedLeadsCount = updatedLeads?.length || 0;
-      } else {
-        // Just update the user status if activating the user
-        const { error } = await supabase
-          .from('profile')
-          .update({ is_active: isActive })
-          .eq('id', userId);
-
-        if (error) {
-          console.error("Error updating user status:", error);
-          throw new Error(error.message || 'Failed to update user status.');
-        }
+      // Handle errors
+      if (!response.ok) {
+        console.error("User Status Update API Error:", result.error);
+        throw new Error(result.error || 'Failed to update user status');
       }
 
-      return { userId, isActive, updatedLeadsCount };
+      return {
+        userId: result.userId,
+        isActive: result.is_active,
+        updatedLeadsCount: result.updatedLeadsCount
+      };
     },
     onSuccess: (data) => {
       const statusText = data.isActive ? 'activated' : 'deactivated';

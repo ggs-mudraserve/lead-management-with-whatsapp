@@ -31,6 +31,8 @@ export interface CreateUserFormData {
   last_name: string;
   role: UserRole;
   segment: ProfileSegment | null;
+  emp_code?: string; // Optional override for employee code
+  salary_current?: number | null; // Salary field
 }
 
 interface CreateUserDialogProps {
@@ -48,6 +50,8 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
     last_name: '',
     role: 'agent', // Default role
     segment: null, // Default segment is null
+    emp_code: '', // Auto-generated if empty
+    salary_current: null, // Optional salary
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateUserFormData, string>>>({});
 
@@ -61,6 +65,8 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
         last_name: '',
         role: 'agent',
         segment: null,
+        emp_code: '',
+        salary_current: null,
       });
       setErrors({});
     }
@@ -68,7 +74,15 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Handle number fields specially
+    if (name === 'salary_current') {
+      const numValue = value === '' ? null : Number(value);
+      setFormData(prev => ({ ...prev, [name]: numValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (errors[name as keyof CreateUserFormData]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
@@ -103,7 +117,21 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
      if (!formData.role) {
        newErrors.role = 'Role is required';
      }
-    // Add other validations as needed
+     
+     // Validate emp_code format if provided
+     if (formData.emp_code && formData.emp_code.trim() && !/^EMP-\d{4}$/.test(formData.emp_code.trim())) {
+       newErrors.emp_code = 'Employee code must be in format EMP-XXXX (e.g., EMP-0056)';
+     }
+     
+     // Validate salary if provided
+     if (formData.salary_current !== null && formData.salary_current !== undefined) {
+       if (formData.salary_current < 0) {
+         newErrors.salary_current = 'Salary cannot be negative';
+       }
+       if (formData.salary_current > 10000000) {
+         newErrors.salary_current = 'Salary seems too high';
+       }
+     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -118,10 +146,10 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Create New User</DialogTitle>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Create New User (Updated with Emp Code & Salary)</DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent sx={{ paddingBottom: 2 }}>
           <TextField
             autoFocus
             margin="dense"
@@ -220,6 +248,42 @@ export function CreateUserDialog({ open, onClose, onSubmit, isSubmitting }: Crea
               ))}
             </Select>
           </FormControl>
+
+          <TextField
+            margin="dense"
+            id="emp_code"
+            name="emp_code"
+            label="Employee Code"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.emp_code || ''}
+            onChange={handleChange}
+            error={!!errors.emp_code}
+            helperText={errors.emp_code || 'Format: EMP-XXXX (leave empty for auto-generation)'}
+            disabled={isSubmitting}
+            placeholder="EMP-0056"
+          />
+
+          <TextField
+            margin="dense"
+            id="salary_current"
+            name="salary_current"
+            label="Current Salary (INR)"
+            type="number"
+            fullWidth
+            variant="outlined"
+            value={formData.salary_current || ''}
+            onChange={handleChange}
+            error={!!errors.salary_current}
+            helperText={errors.salary_current || 'Monthly gross salary (optional)'}
+            disabled={isSubmitting}
+            placeholder="50000"
+            inputProps={{
+              min: 0,
+              step: 1000,
+            }}
+          />
         </DialogContent>
         <DialogActions sx={{ position: 'relative', p: 2 }}>
           <Button onClick={onClose} disabled={isSubmitting} color="inherit">
