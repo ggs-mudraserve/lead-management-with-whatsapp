@@ -117,7 +117,7 @@ const fetchBanks = async (): Promise<string[]> => {
   return (data || []).map(bank => bank.name);
 };
 
-const fetchDisbursedApplications = async (filters: Filters, sort: SortState): Promise<DisbursedApplicationData[]> => {
+const fetchDisbursedApplications = async (filters: Filters, sort: SortState, userRole?: string | null): Promise<DisbursedApplicationData[]> => {
   // Create a base query
   let query = supabase
     .from('bank_application')
@@ -129,6 +129,11 @@ const fetchDisbursedApplications = async (filters: Filters, sort: SortState): Pr
       )
     `, { count: 'exact' })
     .eq('lead_stage', 'Disbursed');
+
+  // For agents and team leaders, filter out cases where lead_owner is NULL
+  if (userRole === 'agent' || userRole === 'team_leader') {
+    query = query.not('leads.lead_owner', 'is', null);
+  }
 
   // Apply Segment Filter - Use INNER JOIN instead of LEFT JOIN for segment filtering
   // This ensures we only get applications with valid segment values
@@ -245,13 +250,13 @@ export default function DisbursedApplicationsTable() {
   const { data: banks, isLoading: isLoadingBanks } = useQuery<string[], Error>({ queryKey: ['banks'], queryFn: fetchBanks });
   // Use the new function for bank filtering
   const { data, isLoading, error, isError } = useQuery<DisbursedApplicationData[], Error>({
-    queryKey: ['disbursedApplications', filters, sort],
+    queryKey: ['disbursedApplications', filters, sort, profile?.role],
     queryFn: () => {
       // You can choose which function to use here
       // For now, we'll continue using the existing function since it's been updated with bank filtering
       // When you're ready to switch to the new implementation, uncomment the line below
-      // return fetchDisbursedApplicationsWithBankFilter(filters, sort);
-      return fetchDisbursedApplications(filters, sort);
+      // return fetchDisbursedApplicationsWithBankFilter(filters, sort, profile?.role);
+      return fetchDisbursedApplications(filters, sort, profile?.role);
     },
   });
 

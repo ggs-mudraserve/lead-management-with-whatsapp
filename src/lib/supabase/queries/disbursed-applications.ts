@@ -43,7 +43,8 @@ export interface DisbursedSortState {
  */
 export async function fetchDisbursedApplicationsWithBankFilter(
   filters: DisbursedFilters,
-  sort: DisbursedSortState
+  sort: DisbursedSortState,
+  userRole?: string | null
 ): Promise<DisbursedApplicationData[]> {
   // Create a supabase client
   const supabase = createBrowserClient(
@@ -59,6 +60,11 @@ export async function fetchDisbursedApplicationsWithBankFilter(
       leads!inner ( segment, first_name, last_name, lead_owner, profile!left ( id, first_name, last_name, team_members!left( team!left( id, name ) ) ) )
     `, { count: 'exact' })
     .eq('lead_stage', 'Disbursed');
+
+  // For agents and team leaders, filter out cases where lead_owner is NULL
+  if (userRole === 'agent' || userRole === 'team_leader') {
+    query = query.not('leads.lead_owner', 'is', null);
+  }
 
   // Apply Segment Filter
   if (filters.segments.length > 0) {
