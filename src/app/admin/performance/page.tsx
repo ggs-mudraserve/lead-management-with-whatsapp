@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 // MUI Imports
 import Container from '@mui/material/Container';
@@ -18,6 +18,8 @@ import Checkbox from '@mui/material/Checkbox';
 import ListItemText from '@mui/material/ListItemText';
 import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import PeopleIcon from '@mui/icons-material/People';
 import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
@@ -29,10 +31,10 @@ import TableRow from '@mui/material/TableRow';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
 import Alert from '@mui/material/Alert';
-import Skeleton from '@mui/material/Skeleton';
 import { styled, keyframes } from '@mui/material/styles';
 import Fade from '@mui/material/Fade';
 import * as XLSX from 'xlsx';
+import { useRouter } from 'next/navigation';
 
 import {
     getActiveLeadOwners,
@@ -164,7 +166,7 @@ const MenuProps = {
 
 export default function PerformanceReportPage() {
     const { profile } = useAuth();
-    const queryClient = useQueryClient();
+    const router = useRouter();
     const [isExporting, setIsExporting] = useState(false);
 
     // State for pagination and sorting
@@ -399,22 +401,54 @@ export default function PerformanceReportPage() {
                     >
                         Performance Report
                     </Typography>
-                    {canExport && (
+                    <Box sx={{ display: 'flex', gap: 2 }}>
                         <ModernButton
-                            variant="contained"
-                            startIcon={isExporting ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
-                            onClick={handleExport}
-                            disabled={isExporting}
+                            variant="outlined"
+                            startIcon={<TrendingUpIcon />}
+                            onClick={() => router.push('/admin/performance/monthly-trends')}
                             sx={{
-                                background: '#0ea5e9',
+                                borderColor: '#0ea5e9',
+                                color: '#0ea5e9',
                                 '&:hover': {
-                                    background: '#0284c7',
+                                    borderColor: '#0284c7',
+                                    backgroundColor: 'rgba(14, 165, 233, 0.04)',
                                 },
                             }}
                         >
-                            {isExporting ? 'Exporting...' : 'Export to Excel'}
+                            Monthly Trends
                         </ModernButton>
-                    )}
+                        <ModernButton
+                            variant="outlined"
+                            startIcon={<PeopleIcon />}
+                            onClick={() => router.push('/admin/performance/agent-analysis')}
+                            sx={{
+                                borderColor: '#8b5cf6',
+                                color: '#8b5cf6',
+                                '&:hover': {
+                                    borderColor: '#7c3aed',
+                                    backgroundColor: 'rgba(139, 92, 246, 0.04)',
+                                },
+                            }}
+                        >
+                            Agent Analysis
+                        </ModernButton>
+                        {canExport && (
+                            <ModernButton
+                                variant="contained"
+                                startIcon={isExporting ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
+                                onClick={handleExport}
+                                disabled={isExporting}
+                                sx={{
+                                    background: '#0ea5e9',
+                                    '&:hover': {
+                                        background: '#0284c7',
+                                    },
+                                }}
+                            >
+                                {isExporting ? 'Exporting...' : 'Export to Excel'}
+                            </ModernButton>
+                        )}
+                    </Box>
                 </Box>
             </Fade>
 

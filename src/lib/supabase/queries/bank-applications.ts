@@ -29,6 +29,7 @@ export type BankApplicationUpdatePayload = {
   loan_app_number?: string | null;
   applied_amount?: number | null;
   approved_amount?: number | null;
+  cashback?: number | null;
   lead_stage?: Database['public']['Enums']['lead_stage'] | null;
   login_date?: string | null;
   disburse_date?: string | null;
@@ -108,6 +109,7 @@ export async function updateBankApplication(
         p_loan_app_number: payload.loan_app_number ?? '', // Use empty string if null/undefined
         p_applied_amount: payload.applied_amount ?? 0, // Use 0 if null/undefined
         p_approved_amount: approvedAmount, // Pass null if null/undefined
+        p_cashback: payload.cashback ?? null, // Pass null if null/undefined
         p_lead_stage: payload.lead_stage ?? 'New',
         p_login_date: formatDate(payload.login_date) ?? new Date().toISOString(),
         p_disburse_date: formatDate(payload.disburse_date) ?? new Date().toISOString(),

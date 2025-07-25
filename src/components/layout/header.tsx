@@ -193,7 +193,7 @@ export function Header() {
   const adminOnlyLinks = [
     { label: 'Users', href: '/admin/users' }, // Example route
     { label: 'Teams', href: '/admin/teams' }, // Example route
-    { label: 'Performance Report', href: '/admin/report' }, // Add link to the new report
+    { label: 'Performance Report', href: '/admin/performance' }, // Updated to new performance route
     // { label: 'Report', href: '/admin/conversion-report' }, // Keep old one commented/removed
   ];
 

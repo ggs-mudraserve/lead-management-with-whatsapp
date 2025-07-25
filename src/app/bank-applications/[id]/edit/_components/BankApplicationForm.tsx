@@ -38,7 +38,7 @@ import { supabase } from '@/lib/supabase/client';
 import {
   BankApplicationDetails,
   BankApplicationUpdatePayload,
-  Bank,
+  BankName,
   fetchBanks,
   updateBankApplication,
   fetchAppNotes,
@@ -81,6 +81,14 @@ const schema = z.object({
       .nullable()
       .optional()
   ),
+  cashback: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || isNaN(Number(val)) ? null : Number(val)),
+    z.number()
+      .min(0, 'Cashback must be non-negative')
+      .max(100000, 'Cashback must not exceed 1,00,000')
+      .nullable()
+      .optional()
+  ),
   login_date: z.instanceof(dayjs as unknown as typeof Dayjs).nullable().optional(),
   disburse_date: z.instanceof(dayjs as unknown as typeof Dayjs).nullable().optional()
     .refine(val => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), {
@@ -108,7 +116,16 @@ const schema = z.object({
   path: ['disburse_date'],
 });
 
-type BankApplicationFormData = z.infer<typeof schema>;
+interface BankApplicationFormData {
+  bank_name: string;
+  loan_app_number?: string | null;
+  applied_amount?: number | null;
+  approved_amount?: number | null;
+  cashback?: number | null;
+  login_date?: Dayjs | null;
+  disburse_date?: Dayjs | null;
+  lead_stage: Database['public']['Enums']['lead_stage'];
+}
 
 interface BankApplicationFormProps {
   applicationData: BankApplicationDetails;
@@ -139,6 +156,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
       loan_app_number: applicationData.loan_app_number ?? null,
       applied_amount: applicationData.applied_amount ?? undefined,
       approved_amount: applicationData.approved_amount ?? undefined,
+      cashback: applicationData.cashback ?? undefined,
       login_date: applicationData.login_date && dayjs(applicationData.login_date).isValid() ? dayjs(applicationData.login_date) : null,
       disburse_date: applicationData.disburse_date && dayjs(applicationData.disburse_date).isValid() ? dayjs(applicationData.disburse_date) : null,
       lead_stage: applicationData.lead_stage ?? 'New',
@@ -165,6 +183,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
             loan_app_number: formData.loan_app_number || null,
             applied_amount: formData.applied_amount ?? null,
             approved_amount: showApprovedAmount ? (formData.approved_amount ?? null) : null,
+            cashback: formData.cashback ?? null,
             lead_stage: formData.lead_stage,
             login_date: formData.login_date && dayjs.isDayjs(formData.login_date) ? formData.login_date.format('YYYY-MM-DD') : null,
             disburse_date: showDisburseDate && formData.disburse_date && dayjs.isDayjs(formData.disburse_date) ? formData.disburse_date.format('YYYY-MM-DD') : null,
@@ -330,7 +349,7 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                   value={field.value || ''}
                   disabled={isDisbursedAndNotAdmin}
                 >
-                  {(banks || []).map((bank: Bank) => (
+                  {(banks || []).map((bank: BankName) => (
                     <MenuItem key={bank.name} value={bank.name}>
                       {bank.name}
                     </MenuItem>
@@ -428,6 +447,31 @@ export default function BankApplicationForm({ applicationData, userRole }: BankA
                 />
             </Grid>
         )}
+
+        <Grid item xs={12} md={6}>
+          <Controller
+            name="cashback"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Cashback Amount"
+                type="number"
+                fullWidth
+                error={!!errors.cashback}
+                helperText={errors.cashback?.message}
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                disabled={isDisbursedAndNotAdmin}
+                inputProps={{
+                  min: 0,
+                  step: 0.01
+                }}
+                placeholder="Enter cashback amount if applicable"
+              />
+            )}
+          />
+        </Grid>
 
         <Grid item xs={12} md={6}>
           <Controller

@@ -154,6 +154,7 @@ export type Database = {
           applied_amount: number | null
           approved_amount: number | null
           bank_name: string
+          cashback: number | null
           created_at: string | null
           disburse_date: string | null
           id: string
@@ -167,6 +168,7 @@ export type Database = {
           applied_amount?: number | null
           approved_amount?: number | null
           bank_name: string
+          cashback?: number | null
           created_at?: string | null
           disburse_date?: string | null
           id?: string
@@ -180,6 +182,7 @@ export type Database = {
           applied_amount?: number | null
           approved_amount?: number | null
           bank_name?: string
+          cashback?: number | null
           created_at?: string | null
           disburse_date?: string | null
           id?: string
@@ -2030,6 +2033,7 @@ export type Database = {
           p_loan_app_number: string
           p_applied_amount: number
           p_approved_amount: number
+          p_cashback: number
           p_lead_stage: string
           p_login_date: string
           p_disburse_date: string
@@ -2232,3 +2236,38 @@ export const Constants = {
     },
   },
 } as const
+
+// Agent Analysis Types
+export interface AgentAnalysisData {
+  snapshot_month: string;
+  agent_id: string;
+  agent_name: string;
+  segment: Database["public"]["Enums"]["segment_type"];
+  team_id: string;
+  team_name: string;
+  salary_current: number;
+  total_disbursed_amount: number;
+  total_cashback: number;
+  total_revenue: number;
+  total_cost: number;
+  profit_loss: number;
+  profit_margin: number;
+  case_count: number;
+}
+
+export interface AgentAnalysisFilters {
+  startMonth?: string;
+  endMonth?: string;
+  segment?: Database["public"]["Enums"]["segment_type"];
+  agentId?: string;
+}
+
+export interface AgentAnalysisSummary {
+  totalRevenue: number;
+  totalCost: number;
+  totalProfitLoss: number;
+  totalAgents: number;
+  profitableAgents: number;
+  lossAgents: number;
+  avgProfitMargin: number;
+}
