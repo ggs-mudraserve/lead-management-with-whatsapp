@@ -30,6 +30,8 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
+import { styled, keyframes } from '@mui/material/styles';
+import Fade from '@mui/material/Fade';
 import * as XLSX from 'xlsx';
 
 import {
@@ -40,6 +42,88 @@ import {
     segmentOptions // Assuming segmentOptions = ['PL', 'BL'] is exported
 } from '@/lib/supabase/queries/filters';
 import { useAuth } from '@/context/AuthContext';
+
+// Keyframes for animations
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled components for modern look
+const ModernContainer = styled(Container)(({ theme }) => ({
+  background: '#f8fafc',
+  minHeight: '100vh',
+  paddingTop: theme.spacing(3),
+  paddingBottom: theme.spacing(3),
+}));
+
+const FilterSection = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  animation: `${fadeInUp} 0.8s ease-out 0.2s both`,
+  transition: 'all 0.3s ease',
+  marginBottom: theme.spacing(3),
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 6px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.06)',
+  },
+}));
+
+const ModernPaper = styled(Paper)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  overflow: 'hidden',
+  animation: `${fadeInUp} 0.8s ease-out`,
+}));
+
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.spacing(3),
+  padding: theme.spacing(1.5, 3),
+  fontWeight: 600,
+  textTransform: 'none',
+  fontSize: '1rem',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+  },
+}));
+
+const StyledTableHead = styled(TableHead)(({ theme }) => ({
+  background: '#0f172a !important',
+  '& .MuiTableCell-root': {
+    background: 'transparent !important',
+    backgroundColor: 'transparent !important',
+    color: 'white !important',
+    fontWeight: '700 !important',
+    fontSize: '0.9rem !important',
+    borderBottom: 'none !important',
+    padding: `${theme.spacing(2)} !important`,
+  },
+  '& .MuiTableSortLabel-root': {
+    color: 'white !important',
+    '&:hover': {
+      color: 'rgba(255, 255, 255, 0.8) !important',
+    },
+    '&.Mui-active': {
+      color: 'white !important',
+    },
+  },
+  '& .MuiTableSortLabel-icon': {
+    color: 'white !important',
+  },
+}));
 
 // Interface for the data returned by the Supabase function
 interface PerformanceReportRow {
@@ -292,28 +376,69 @@ export default function PerformanceReportPage() {
 
     // --- Render ---
     return (
-        <Container maxWidth="lg">
-            <Box sx={{ my: 4 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h4" component="h1">
+        <ModernContainer maxWidth="lg">
+            <Fade in={true} timeout={800}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography 
+                        variant="h4" 
+                        component="h1"
+                        sx={{
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            display: 'flex',
+                            alignItems: 'center',
+                            '&::before': {
+                                content: '""',
+                                width: 4,
+                                height: 32,
+                                backgroundColor: '#0ea5e9',
+                                borderRadius: 2,
+                                mr: 2,
+                            },
+                        }}
+                    >
                         Performance Report
                     </Typography>
                     {canExport && (
-                        <Button
+                        <ModernButton
                             variant="contained"
                             startIcon={isExporting ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
                             onClick={handleExport}
                             disabled={isExporting}
+                            sx={{
+                                background: '#0ea5e9',
+                                '&:hover': {
+                                    background: '#0284c7',
+                                },
+                            }}
                         >
                             {isExporting ? 'Exporting...' : 'Export to Excel'}
-                        </Button>
+                        </ModernButton>
                     )}
                 </Box>
+            </Fade>
 
                 {/* Filter Section */}
-                <Paper sx={{ p: 3, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Filters
+                <FilterSection>
+                    <Typography 
+                        variant="h6" 
+                        sx={{
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            display: 'flex',
+                            alignItems: 'center',
+                            mb: 3,
+                            '&::before': {
+                                content: '""',
+                                width: 4,
+                                height: 24,
+                                backgroundColor: '#0ea5e9',
+                                borderRadius: 2,
+                                mr: 2,
+                            },
+                        }}
+                    >
+                        Filter Reports
                     </Typography>
                     <Grid container spacing={2} sx={{ mb: 1, alignItems: 'center' }}>
                         <Grid item xs={12} sm={6} md={4} lg={3}>
@@ -429,13 +554,13 @@ export default function PerformanceReportPage() {
                             />
                         </Grid>
                     </Grid>
-                </Paper>
+                </FilterSection>
 
                 {/* Report Table */}
-                <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+                <ModernPaper sx={{ width: '100%', overflow: 'hidden' }}>
                     <TableContainer sx={{ maxHeight: 600 }}>
                         <Table stickyHeader aria-label="performance report table">
-                            <TableHead>
+                            <StyledTableHead>
                                 <TableRow>
                                     {headCells.map((headCell) => (
                                         <TableCell
@@ -458,7 +583,7 @@ export default function PerformanceReportPage() {
                                         </TableCell>
                                     ))}
                                 </TableRow>
-                            </TableHead>
+                            </StyledTableHead>
                             <TableBody>
                                 {isLoadingReport ? (
                                     <TableRow>
@@ -517,8 +642,7 @@ export default function PerformanceReportPage() {
                         onPageChange={handleChangePage}
                         onRowsPerPageChange={handleChangeRowsPerPage}
                     />
-                </Paper>
-            </Box>
-        </Container>
+                </ModernPaper>
+        </ModernContainer>
     );
 }

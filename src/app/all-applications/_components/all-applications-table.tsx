@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -18,6 +18,10 @@ import EditIcon from '@mui/icons-material/Edit';
 import TablePagination from '@mui/material/TablePagination';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { styled, keyframes } from '@mui/material/styles';
+import Chip from '@mui/material/Chip';
+import Fade from '@mui/material/Fade';
+import Zoom from '@mui/material/Zoom';
 import {
     getBankApplications,
     BankApplicationRow,
@@ -26,6 +30,124 @@ import {
 } from '@/lib/supabase/queries/all-applications';
 
 type Order = 'asc' | 'desc';
+
+// Animation keyframes
+const slideInFromBottom = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
+// Styled components
+const ModernPaper = styled(Paper)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  overflow: 'hidden',
+  animation: `${slideInFromBottom} 0.8s ease-out`,
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 6px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.06)',
+  },
+}));
+
+const StyledTableHead = styled(TableHead)(({ theme }) => ({
+  background: '#0f172a !important',
+  '& .MuiTableCell-root': {
+    background: 'transparent !important',
+    backgroundColor: 'transparent !important',
+    color: 'white !important',
+    fontWeight: '700 !important',
+    fontSize: '0.9rem !important',
+    borderBottom: 'none !important',
+    padding: `${theme.spacing(2)} !important`,
+    '&:first-of-type': {
+      borderTopLeftRadius: `${theme.spacing(2)} !important`,
+    },
+    '&:last-of-type': {
+      borderTopRightRadius: `${theme.spacing(2)} !important`,
+    },
+  },
+  '& .MuiTableSortLabel-root': {
+    color: 'white !important',
+    '&:hover': {
+      color: 'rgba(255, 255, 255, 0.8) !important',
+    },
+    '&.Mui-active': {
+      color: 'white !important',
+    },
+  },
+  '& .MuiTableSortLabel-icon': {
+    color: 'white !important',
+  },
+}));
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    backgroundColor: 'rgba(226, 232, 240, 0.3)',
+    transform: 'scale(1.01)',
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1)',
+  },
+  '& .MuiTableCell-root': {
+    borderBottom: '1px solid rgba(226, 232, 240, 0.6)',
+    padding: theme.spacing(2),
+    transition: 'all 0.3s ease',
+    color: '#0f172a',
+  },
+}));
+
+const StyledTableCell = styled(TableCell)(() => ({
+  fontSize: '0.875rem',
+  fontWeight: 500,
+}));
+
+const ModernIconButton = styled(IconButton)(({ theme }) => ({
+  borderRadius: theme.spacing(1),
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  color: '#475569',
+  '&:hover': {
+    backgroundColor: '#0ea5e9',
+    color: 'white',
+    transform: 'scale(1.1) rotate(5deg)',
+    boxShadow: '0 2px 8px rgba(14, 165, 233, 0.3)',
+  },
+}));
+
+const StatusChip = styled(Chip)(({ theme }) => ({
+  borderRadius: theme.spacing(1),
+  fontWeight: 600,
+  fontSize: '0.75rem',
+  animation: `${scaleIn} 0.5s ease-out`,
+}));
+
+const getStatusColor = (stage: string) => {
+  const statusColors: { [key: string]: 'success' | 'warning' | 'error' | 'info' | 'default' } = {
+    'Sent to Bank': 'success',
+    'Under Review': 'warning',
+    'New': 'info',
+    'documents_incomplete': 'error',
+  };
+  return statusColors[stage] || 'default';
+};
 
 interface HeadCell {
   id: keyof BankApplicationRow | 'actions';
@@ -119,17 +241,16 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
   }
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+    <ModernPaper>
       <TableContainer sx={{ maxHeight: 600 }}>
         <Table stickyHeader sx={{ minWidth: 500 }} aria-label="all bank applications table">
-          <TableHead>
+          <StyledTableHead>
             <TableRow>
               {headCells.map((headCell) => (
                 <TableCell
                   key={headCell.id}
                   align={headCell.numeric ? 'right' : 'left'}
                   sortDirection={orderBy === headCell.id ? order : false}
-                  sx={{ fontWeight: 'bold' }}
                 >
                   {headCell.sortable ? (
                     <TableSortLabel
@@ -145,35 +266,55 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
                 </TableCell>
               ))}
             </TableRow>
-          </TableHead>
+          </StyledTableHead>
           <TableBody>
             {isLoading && applications.length === 0 ? (
                 <TableRow><TableCell colSpan={headCells.length} align="center"><CircularProgress /></TableCell></TableRow>
             ) : applications.length > 0 ? (
               applications.map((row) => {
                 return (
-                  <TableRow
-                    hover
-                    key={row.id}
-                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                  >
-                    <TableCell component="th" scope="row">{row.lead_segment ?? '-'}</TableCell>
-                    <TableCell>{row.lead_first_name ?? '-'}</TableCell>
-                    <TableCell>{row.lead_last_name ?? '-'}</TableCell>
-                    <TableCell align="right">{row.approved_amount?.toLocaleString() ?? '-'}</TableCell>
-                    <TableCell>{row.bank_name ?? '-'}</TableCell>
-                    <TableCell>{row.lead_stage ?? '-'}</TableCell>
-                    <TableCell>{row.login_date ? new Date(row.login_date).toLocaleDateString() : '-'}</TableCell>
-                    <TableCell>{row.lead_owner_name ?? '-'}</TableCell>
-                    <TableCell>{row.team_name ?? '-'}</TableCell>
-                    <TableCell align="center">
+                  <StyledTableRow key={row.id}>
+                    <StyledTableCell component="th" scope="row">
+                      <Fade in={true} timeout={500}>
+                        <StatusChip 
+                          label={row.lead_segment ?? '-'} 
+                          size="small" 
+                          variant="outlined"
+                        />
+                      </Fade>
+                    </StyledTableCell>
+                    <StyledTableCell>{row.lead_first_name ?? '-'}</StyledTableCell>
+                    <StyledTableCell>{row.lead_last_name ?? '-'}</StyledTableCell>
+                    <StyledTableCell align="right">
+                      <Box sx={{ fontWeight: 600, color: '#059669' }}>
+                        {row.approved_amount?.toLocaleString() ?? '-'}
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box sx={{ fontWeight: 500, color: '#475569' }}>
+                        {row.bank_name ?? '-'}
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Zoom in={true} timeout={600}>
+                        <StatusChip 
+                          label={row.lead_stage ?? '-'} 
+                          color={getStatusColor(row.lead_stage ?? '')}
+                          size="small"
+                        />
+                      </Zoom>
+                    </StyledTableCell>
+                    <StyledTableCell>{row.login_date ? new Date(row.login_date).toLocaleDateString() : '-'}</StyledTableCell>
+                    <StyledTableCell>{row.lead_owner_name ?? '-'}</StyledTableCell>
+                    <StyledTableCell>{row.team_name ?? '-'}</StyledTableCell>
+                    <StyledTableCell align="center">
                       <Link href={`/bank-applications/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
-                        <IconButton size="small" aria-label="edit application">
+                        <ModernIconButton size="small" aria-label="edit application">
                           <EditIcon fontSize="small" />
-                        </IconButton>
+                        </ModernIconButton>
                       </Link>
-                    </TableCell>
-                  </TableRow>
+                    </StyledTableCell>
+                  </StyledTableRow>
                 );
               })
             ) : (
@@ -195,6 +336,6 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
       />
-    </Paper>
+    </ModernPaper>
   );
 }

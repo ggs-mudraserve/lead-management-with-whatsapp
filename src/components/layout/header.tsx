@@ -16,12 +16,134 @@ import { supabase } from '@/lib/supabase/client'; // Import the initialized clie
 import { useRouter, usePathname } from 'next/navigation'; // Next.js router
 import Snackbar from '@mui/material/Snackbar';
 import Alert, { AlertColor } from '@mui/material/Alert';
+import { styled, keyframes } from '@mui/material/styles';
+import Fade from '@mui/material/Fade';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
 // Expected response type from check_lead_status_by_mobile RPC
 interface CheckLeadStatusResponse {
   status: 'DOES_NOT_EXIST' | 'EXISTS_ACCESSIBLE' | 'EXISTS_INACCESSIBLE';
   leadId?: string; // Changed to camelCase to match actual response
 }
+
+// Animation keyframes
+const slideInFromTop = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled components
+const ModernAppBar = styled(AppBar)(() => ({
+  background: '#ffffff',
+  color: '#0f172a',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
+  animation: `${slideInFromTop} 0.8s ease-out`,
+}));
+
+const LogoTypography = styled(Typography)(() => ({
+  background: 'linear-gradient(45deg, #0ea5e9 30%, #0f172a 90%)',
+  backgroundClip: 'text',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  fontFamily: 'monospace',
+  fontWeight: 700,
+  letterSpacing: '.1rem',
+  textDecoration: 'none',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'scale(1.05)',
+    filter: 'drop-shadow(2px 2px 4px rgba(15,23,42,0.2))',
+  },
+}));
+
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.spacing(3),
+  padding: theme.spacing(1, 2),
+  fontWeight: 600,
+  textTransform: 'none',
+  color: '#475569',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  position: 'relative',
+  overflow: 'hidden',
+  '&:hover': {
+    backgroundColor: '#f1f5f9',
+    color: '#0f172a',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 2px 8px rgba(15, 23, 42, 0.1)',
+  },
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: '-100%',
+    width: '100%',
+    height: '100%',
+    background: 'linear-gradient(90deg, transparent, rgba(15,23,42,0.05), transparent)',
+    transition: 'left 0.5s',
+  },
+  '&:hover::before': {
+    left: '100%',
+  },
+}));
+
+const SearchField = styled(TextField)(({ theme }) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: theme.spacing(3),
+    backgroundColor: '#f8fafc',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: '#f1f5f9',
+      transform: 'scale(1.02)',
+    },
+    '&.Mui-focused': {
+      backgroundColor: '#f1f5f9',
+      transform: 'scale(1.02)',
+      boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+    },
+    '& fieldset': {
+      borderColor: 'rgba(226, 232, 240, 0.8)',
+    },
+    '&:hover fieldset': {
+      borderColor: '#94a3b8',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#0ea5e9',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: '#64748b',
+    fontWeight: 500,
+  },
+  '& .MuiInputLabel-root.Mui-focused': {
+    color: '#0ea5e9',
+  },
+  '& .MuiOutlinedInput-input': {
+    color: '#0f172a',
+    fontWeight: 500,
+  },
+}));
+
+const SearchButton = styled(ModernButton)(({ theme }) => ({
+  background: '#0ea5e9',
+  color: 'white',
+  marginLeft: theme.spacing(1),
+  '&:hover': {
+    background: '#0284c7',
+    color: 'white',
+  },
+  '&:disabled': {
+    background: '#94a3b8',
+    color: '#e2e8f0',
+  },
+}));
 
 // Per rule 14: Use named exports for components
 export function Header() {
@@ -174,28 +296,20 @@ export function Header() {
   const canSearch = user && (profile?.role?.toLowerCase() === 'agent' || profile?.role?.toLowerCase() === 'tl' || profile?.role?.toLowerCase() === 'backend' || profile?.role?.toLowerCase() === 'admin'); // simplified back
 
   return (
-    <AppBar position="static">
+    <ModernAppBar position="static">
       <Container maxWidth={false}> {/* Use Container for consistent padding */}
         <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
           {/* Left side: Logo and Menu Links */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography
+            <LogoTypography
               variant="h6"
               noWrap
               component={Link} // Use Next Link
               href={user ? "/all-applications" : "/login"} // Link to dashboard or login
-              sx={{
-                mr: 2,
-                // display: { xs: 'none\', md: 'flex' }, // Keep logo always visible for simplicity
-                fontFamily: 'monospace',
-                fontWeight: 700,
-                letterSpacing: '.1rem',
-                color: 'inherit',
-                textDecoration: 'none',
-              }}
+              sx={{ mr: 2 }}
             >
               LEADAPP
-            </Typography>
+            </LogoTypography>
 
             {/* Navigation Links - Render only if logged in */}
             <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, ml: 2 }}>
@@ -206,15 +320,16 @@ export function Header() {
                         <Skeleton variant="text" width={80} sx={{ mr: 2 }}/>
                     </>
                 )}
-                {!loading && user && menuLinks.map((link) => (
-                    <Button
-                        key={link.label}
-                        component={Link}
-                        href={link.href}
-                        sx={{ my: 2, color: 'white', display: 'block' }}
+                {!loading && user && menuLinks.map((link, index) => (
+                  <Fade in={true} timeout={800} style={{ transitionDelay: `${index * 100}ms` }} key={link.label}>
+                    <ModernButton
+                      component={Link}
+                      href={link.href}
+                      sx={{ my: 2, color: '#0f172a', display: 'block' }}
                     >
-                        {link.label}
-                    </Button>
+                      {link.label}
+                    </ModernButton>
+                  </Fade>
                 ))}
             </Box>
           </Box>
@@ -225,58 +340,60 @@ export function Header() {
               <Skeleton variant="text" width={150} sx={{ mr: 2 }} />
             )}
             {!loading && user && profile && (
-              <Typography sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}> {/* Hide on extra small screens */}
+              <Typography sx={{ mr: 2, display: { xs: 'none', sm: 'block' }, color: '#475569' }}> {/* Hide on extra small screens */}
                 Welcome, {profile.first_name || user.email} ({profile.role})
               </Typography>
             )}
             {!loading && user && (
-              <Button color="inherit" onClick={signOut}>
-                Logout
-              </Button>
+              <Fade in={true} timeout={1000}>
+                <ModernButton onClick={signOut} sx={{ color: '#0f172a' }}>
+                  Logout
+                </ModernButton>
+              </Fade>
             )}
             {!loading && !user && (
-              <Button component={Link} href="/login" color="inherit">
-                Login
-              </Button>
+              <Fade in={true} timeout={1000}>
+                <ModernButton component={Link} href="/login" sx={{ color: '#0f172a' }}>
+                  Login
+                </ModernButton>
+              </Fade>
             )}
           </Box>
 
           {/* Conditional Search Box */}
           {canSearch && (
-            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px' }}> {/* Use form tag and inline styles */}
-              <TextField
-                label="Search Mobile (10 digits)"
-                variant="outlined"
-                size="small"
-                value={mobileSearch}
-                onChange={handleSearchChange}
-                inputProps={{
-                  maxLength: 10,
-                  pattern: '\\d{10}', // Basic HTML5 pattern validation
-                  title: 'Please enter exactly 10 digits',
-                }}
-                disabled={checkLeadMutation.isPending} // Disable while searching
-                sx={{
-                   // Make input white for better contrast on dark AppBar
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.7)' },
-                    '&:hover fieldset': { borderColor: 'white' },
-                    '&.Mui-focused fieldset': { borderColor: 'white' },
-                  },
-                  '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
-                  '& .MuiInputLabel-root.Mui-focused': { color: 'white' },
-                  '& .MuiOutlinedInput-input': { color: 'white' },
-                }}
-              />
-              <Button
-                type="submit" // Re-added type="submit"
-                variant="contained"
-                color="secondary"
-                size="medium"
-                disabled={checkLeadMutation.isPending}>
-                Search / Create
-              </Button>
-            </form>
+            <Fade in={true} timeout={1200} style={{ transitionDelay: '300ms' }}>
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px' }}>
+                <SearchField
+                  label="Search Mobile (10 digits)"
+                  variant="outlined"
+                  size="small"
+                  value={mobileSearch}
+                  onChange={handleSearchChange}
+                  inputProps={{
+                    maxLength: 10,
+                    pattern: '\\d{10}',
+                    title: 'Please enter exactly 10 digits',
+                  }}
+                  disabled={checkLeadMutation.isPending}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: '#64748b' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <SearchButton
+                  type="submit"
+                  variant="contained"
+                  size="medium"
+                  disabled={checkLeadMutation.isPending}
+                >
+                  {checkLeadMutation.isPending ? 'Searching...' : 'Search / Create'}
+                </SearchButton>
+              </form>
+            </Fade>
           )}
 
         </Toolbar>
@@ -290,7 +407,7 @@ export function Header() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </AppBar>
+    </ModernAppBar>
   );
 }
 

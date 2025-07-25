@@ -22,6 +22,8 @@ import {
   Snackbar,
   Alert as MuiAlert,
 } from '@mui/material';
+import { styled, keyframes } from '@mui/material/styles';
+import Fade from '@mui/material/Fade';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -29,6 +31,54 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import { Database } from '@/lib/supabase/database.types';
 import { TeamFormDialog, TeamFormData } from './_components/team-form-dialog';
 import { AddMemberDialog } from './_components/add-member-dialog';
+
+// Keyframes for animations
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled components for modern look
+const ModernContainer = styled(Container)(({ theme }) => ({
+  background: '#f8fafc',
+  minHeight: '100vh',
+  paddingTop: theme.spacing(3),
+  paddingBottom: theme.spacing(3),
+}));
+
+const ModernPaper = styled(Paper)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  overflow: 'hidden',
+  animation: `${fadeInUp} 0.8s ease-out`,
+  padding: theme.spacing(3),
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 6px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.06)',
+  },
+  transition: 'all 0.3s ease',
+}));
+
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.spacing(3),
+  padding: theme.spacing(1.5, 3),
+  fontWeight: 600,
+  textTransform: 'none',
+  fontSize: '1rem',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+  },
+}));
 
 // Interfaces
 type Team = Database['public']['Tables']['team']['Row'];
@@ -307,26 +357,53 @@ export default function TeamManagementPage() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Team Management
-      </Typography>
+    <ModernContainer maxWidth="lg">
+      <Fade in={true} timeout={800}>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          gutterBottom
+          sx={{
+            fontWeight: 600,
+            color: '#0f172a',
+            display: 'flex',
+            alignItems: 'center',
+            mb: 3,
+            '&::before': {
+              content: '""',
+              width: 4,
+              height: 32,
+              backgroundColor: '#0ea5e9',
+              borderRadius: 2,
+              mr: 2,
+            },
+          }}
+        >
+          Team Management
+        </Typography>
+      </Fade>
 
       <Grid container spacing={3}>
         {/* Teams List Section */}
         <Grid item xs={12} md={5}>
-          <Paper elevation={2} sx={{ p: 2 }}>
+          <ModernPaper>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Teams</Typography>
-              <Button
+              <ModernButton
                 variant="contained"
                 size="small"
                 startIcon={<AddIcon />}
                 onClick={handleCreateTeamClick}
                 disabled={isLoading}
+                sx={{
+                  background: '#0ea5e9',
+                  '&:hover': {
+                    background: '#0284c7',
+                  },
+                }}
               >
                 Create Team
-              </Button>
+              </ModernButton>
             </Box>
             {isLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center' }}> <CircularProgress /> </Box>
@@ -384,26 +461,32 @@ export default function TeamManagementPage() {
             ) : (
               <Typography variant="body2" color="text.secondary">No teams found. Create one to get started.</Typography>
             )}
-          </Paper>
+          </ModernPaper>
         </Grid>
 
         {/* Team Members Section */}
         <Grid item xs={12} md={7}>
-          <Paper elevation={2} sx={{ p: 2, minHeight: '300px' }}>
+          <ModernPaper sx={{ minHeight: '300px' }}>
              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6">
                     {selectedTeam ? `Members of ${selectedTeam.name}` : 'Select a Team'}
                 </Typography>
                 {selectedTeam && (
-                    <Button
+                    <ModernButton
                         variant="contained"
                         size="small"
                         startIcon={<AddIcon />}
                         onClick={handleAddMemberClick}
                         disabled={!selectedTeam || membersLoading || isProcessingMember}
+                        sx={{
+                          background: '#0ea5e9',
+                          '&:hover': {
+                            background: '#0284c7',
+                          },
+                        }}
                     >
                         Add Member
-                    </Button>
+                    </ModernButton>
                 )}
              </Box>
             {selectedTeam ? (
@@ -441,7 +524,7 @@ export default function TeamManagementPage() {
                      Select a team from the list to view and manage its members.
                  </Typography>
             )}
-          </Paper>
+          </ModernPaper>
         </Grid>
       </Grid>
 
@@ -479,6 +562,6 @@ export default function TeamManagementPage() {
           </MuiAlert>
       </Snackbar>
 
-    </Container>
+    </ModernContainer>
   );
 } 

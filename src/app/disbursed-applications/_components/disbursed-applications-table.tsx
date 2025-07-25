@@ -29,6 +29,9 @@ import {
   Button,
   SelectChangeEvent,
 } from '@mui/material';
+import { styled, keyframes } from '@mui/material/styles';
+import Fade from '@mui/material/Fade';
+import Grow from '@mui/material/Grow';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import EditIcon from '@mui/icons-material/Edit';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -38,6 +41,129 @@ import { Dayjs } from 'dayjs';
 import { Database } from '@/lib/supabase/database.types';
 import { useAuth } from '@/context/AuthContext';
 import { fetchDisbursedApplicationsWithBankFilter } from '@/lib/supabase/queries/disbursed-applications';
+
+// Keyframes for animations
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled components for modern look
+const FilterSection = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  animation: `${fadeInUp} 0.8s ease-out 0.2s both`,
+  transition: 'all 0.3s ease',
+  marginBottom: theme.spacing(3),
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 6px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.06)',
+  },
+}));
+
+const ModernPaper = styled(Paper)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  overflow: 'hidden',
+  animation: `${fadeInUp} 0.8s ease-out`,
+}));
+
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.spacing(3),
+  padding: theme.spacing(1.5, 3),
+  fontWeight: 600,
+  textTransform: 'none',
+  fontSize: '1rem',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+  },
+}));
+
+const StyledFormControl = styled(FormControl)(({ theme }) => ({
+  minWidth: 180,
+  width: '100%',
+  '& .MuiOutlinedInput-root': {
+    borderRadius: theme.spacing(1.5),
+    transition: 'all 0.3s ease',
+    minHeight: 40,
+    '&:hover': {
+      transform: 'scale(1.02)',
+    },
+    '&.Mui-focused': {
+      transform: 'scale(1.02)',
+      boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    fontWeight: 600,
+    color: '#475569',
+  },
+}));
+
+const StyledTableHead = styled(TableHead)(({ theme }) => ({
+  background: '#0f172a !important',
+  '& .MuiTableCell-root': {
+    background: 'transparent !important',
+    backgroundColor: 'transparent !important',
+    color: 'white !important',
+    fontWeight: '700 !important',
+    fontSize: '0.9rem !important',
+    borderBottom: 'none !important',
+    padding: `${theme.spacing(2)} !important`,
+  },
+  '& .MuiTableSortLabel-root': {
+    color: 'white !important',
+    '&:hover': {
+      color: 'rgba(255, 255, 255, 0.8) !important',
+    },
+    '&.Mui-active': {
+      color: 'white !important',
+    },
+  },
+  '& .MuiTableSortLabel-icon': {
+    color: 'white !important',
+  },
+}));
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    backgroundColor: 'rgba(226, 232, 240, 0.3)',
+    transform: 'scale(1.01)',
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1)',
+  },
+  '& .MuiTableCell-root': {
+    borderBottom: '1px solid rgba(226, 232, 240, 0.6)',
+    padding: theme.spacing(2),
+    transition: 'all 0.3s ease',
+    color: '#0f172a',
+  },
+}));
+
+const ModernIconButton = styled(IconButton)(({ theme }) => ({
+  borderRadius: theme.spacing(1),
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  color: '#475569',
+  '&:hover': {
+    backgroundColor: '#0ea5e9',
+    color: 'white',
+    transform: 'scale(1.1) rotate(5deg)',
+    boxShadow: '0 2px 8px rgba(14, 165, 233, 0.3)',
+  },
+}));
 
 // Type for Owners fetched for dropdown
 interface Owner {
@@ -341,24 +467,49 @@ export default function DisbursedApplicationsTable() {
   return (
     <Box>
       {/* Filter Section */}
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1}}>
-            <Typography variant="h6">Filters</Typography>
+      <FilterSection>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3}}>
+            <Typography 
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                color: '#0f172a',
+                display: 'flex',
+                alignItems: 'center',
+                '&::before': {
+                  content: '""',
+                  width: 4,
+                  height: 24,
+                  backgroundColor: '#0ea5e9',
+                  borderRadius: 2,
+                  mr: 2,
+                },
+              }}
+            >
+              Filter Applications
+            </Typography>
             {canExport && (
-                <Button
+                <ModernButton
                     variant="contained"
                     startIcon={<DownloadIcon />}
                     onClick={handleExport}
                     disabled={!data || data.length === 0}
+                    sx={{
+                      background: '#0ea5e9',
+                      '&:hover': {
+                        background: '#0284c7',
+                      },
+                    }}
                 >
                     Export to Excel
-                </Button>
+                </ModernButton>
             )}
         </Box>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="segment-filter-label" sx={{ fontWeight: 'bold' }}>Segment</InputLabel>
+        <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+          <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+            <Grow in={true} timeout={800} style={{ transitionDelay: '100ms' }}>
+              <StyledFormControl fullWidth size="small">
+                <InputLabel id="segment-filter-label">Segment</InputLabel>
               <Select
                 labelId="segment-filter-label"
                 multiple
@@ -375,12 +526,14 @@ export default function DisbursedApplicationsTable() {
                     <ListItemText primary={segment} />
                   </MenuItem>
                 ))}
-              </Select>
-            </FormControl>
+                </Select>
+              </StyledFormControl>
+            </Grow>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small" disabled={isLoadingBanks}>
-              <InputLabel id="bank-filter-label" sx={{ fontWeight: 'bold' }}>Bank</InputLabel>
+          <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+            <Grow in={true} timeout={800} style={{ transitionDelay: '200ms' }}>
+              <StyledFormControl fullWidth size="small" disabled={isLoadingBanks}>
+                <InputLabel id="bank-filter-label">Bank</InputLabel>
               <Select
                 labelId="bank-filter-label"
                 multiple
@@ -397,12 +550,14 @@ export default function DisbursedApplicationsTable() {
                     <ListItemText primary={bank} />
                   </MenuItem>
                 ))}
-              </Select>
-            </FormControl>
+                </Select>
+              </StyledFormControl>
+            </Grow>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small" disabled={isLoadingOwners}>
-              <InputLabel id="owner-filter-label" sx={{ fontWeight: 'bold' }}>Lead Owner</InputLabel>
+          <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+            <Grow in={true} timeout={800} style={{ transitionDelay: '300ms' }}>
+              <StyledFormControl fullWidth size="small" disabled={isLoadingOwners}>
+                <InputLabel id="owner-filter-label">Lead Owner</InputLabel>
               <Select
                 labelId="owner-filter-label"
                 multiple
@@ -419,12 +574,14 @@ export default function DisbursedApplicationsTable() {
                     <ListItemText primary={`${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim()} />
                   </MenuItem>
                 ))}
-              </Select>
-            </FormControl>
+                </Select>
+              </StyledFormControl>
+            </Grow>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-             <FormControl fullWidth size="small" disabled={isLoadingTeams}>
-               <InputLabel id="team-filter-label" sx={{ fontWeight: 'bold' }}>Team</InputLabel>
+          <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+            <Grow in={true} timeout={800} style={{ transitionDelay: '400ms' }}>
+              <StyledFormControl fullWidth size="small" disabled={isLoadingTeams}>
+                <InputLabel id="team-filter-label">Team</InputLabel>
                <Select
                  labelId="team-filter-label"
                  multiple
@@ -441,42 +598,83 @@ export default function DisbursedApplicationsTable() {
                      <ListItemText primary={team.name} />
                    </MenuItem>
                  ))}
-               </Select>
-             </FormControl>
-           </Grid>
-          <Grid item xs={12} sm={6} md={4} sx={{ display: 'flex', gap: 1 }}>
-            <DatePicker
-              label="Disburse Start"
-              value={filters.disburseDateStart}
-              onChange={(newValue) => handleFilterChange('disburseDateStart', newValue)}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  fullWidth: true,
-                  InputLabelProps: {
-                    sx: { fontWeight: 'bold' }
-                  }
-                }
-              }}
-            />
-            <DatePicker
-              label="Disburse End"
-              value={filters.disburseDateEnd}
-              onChange={(newValue) => handleFilterChange('disburseDateEnd', newValue)}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  fullWidth: true,
-                  InputLabelProps: {
-                    sx: { fontWeight: 'bold' }
-                  }
-                }
-              }}
-              minDate={filters.disburseDateStart || undefined}
-            />
+                </Select>
+              </StyledFormControl>
+            </Grow>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+            <Grow in={true} timeout={800} style={{ transitionDelay: '500ms' }}>
+              <DatePicker
+                label="Disburse Start"
+                value={filters.disburseDateStart}
+                onChange={(newValue) => handleFilterChange('disburseDateStart', newValue)}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    fullWidth: true,
+                    sx: {
+                      minWidth: 160,
+                      maxWidth: 200,
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        transition: 'all 0.3s ease',
+                        minHeight: 40,
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                        },
+                        '&.Mui-focused': {
+                          transform: 'scale(1.02)',
+                          boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontWeight: 600,
+                        color: '#475569',
+                      },
+                    },
+                  },
+                }}
+              />
+            </Grow>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+            <Grow in={true} timeout={800} style={{ transitionDelay: '600ms' }}>
+              <DatePicker
+                label="Disburse End"
+                value={filters.disburseDateEnd}
+                onChange={(newValue) => handleFilterChange('disburseDateEnd', newValue)}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    fullWidth: true,
+                    sx: {
+                      minWidth: 160,
+                      maxWidth: 200,
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        transition: 'all 0.3s ease',
+                        minHeight: 40,
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                        },
+                        '&.Mui-focused': {
+                          transform: 'scale(1.02)',
+                          boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontWeight: 600,
+                        color: '#475569',
+                      },
+                    },
+                  },
+                }}
+                minDate={filters.disburseDateStart || undefined}
+              />
+            </Grow>
           </Grid>
         </Grid>
-      </Paper>
+      </FilterSection>
 
       {/* Table Section */}
       {isLoading ? (
@@ -488,9 +686,10 @@ export default function DisbursedApplicationsTable() {
       ) : !data || data.length === 0 ? (
         <Typography sx={{ mt: 2 }}>No disbursed applications found matching filters.</Typography>
       ) : (
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="disbursed applications table">
-            <TableHead sx={{ backgroundColor: 'grey.200' }}>
+        <ModernPaper>
+          <TableContainer>
+            <Table sx={{ minWidth: 650 }} aria-label="disbursed applications table">
+              <StyledTableHead>
               <TableRow>
                 <TableCell>Segment</TableCell>
                 <TableCell>First Name</TableCell>
@@ -514,13 +713,10 @@ export default function DisbursedApplicationsTable() {
                 <TableCell>Team</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.map((row) => (
-                <TableRow
-                  key={row.id}
-                  sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                >
+              </StyledTableHead>
+              <TableBody>
+                {data.map((row) => (
+                  <StyledTableRow key={row.id}>
                    <TableCell>{row.segment || 'N/A'}</TableCell>
                    <TableCell>{row.first_name || 'N/A'}</TableCell>
                    <TableCell>{row.last_name || ''}</TableCell>
@@ -537,13 +733,13 @@ export default function DisbursedApplicationsTable() {
                    <TableCell align="center">
                      <Tooltip title="View/Edit Application">
                        <Link href={`/bank-applications/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
-                         <IconButton size="small" color="primary">
+                         <ModernIconButton size="small" aria-label="edit application">
                            <EditIcon fontSize="small" />
-                         </IconButton>
+                         </ModernIconButton>
                        </Link>
                      </Tooltip>
                    </TableCell>
-                </TableRow>
+                  </StyledTableRow>
               ))}
             </TableBody>
           </Table>
@@ -560,7 +756,8 @@ export default function DisbursedApplicationsTable() {
                 </Typography>
             </Box>
            {/* TODO: Add Pagination Controls */}
-        </TableContainer>
+          </TableContainer>
+        </ModernPaper>
       )}
     </Box>
   );

@@ -33,10 +33,67 @@ import {
   DialogContentText,
   DialogActions,
 } from '@mui/material';
+import { styled, keyframes } from '@mui/material/styles';
+import Fade from '@mui/material/Fade';
 import AddIcon from '@mui/icons-material/Add';
 import KeyIcon from '@mui/icons-material/Key';
 import { Database } from '@/lib/supabase/database.types';
 import { CreateUserDialog, CreateUserFormData } from './_components/create-user-dialog';
+
+// Keyframes for animations
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled components for modern look
+const ModernContainer = styled(Container)(({ theme }) => ({
+  background: '#f8fafc',
+  minHeight: '100vh',
+  paddingTop: theme.spacing(3),
+  paddingBottom: theme.spacing(3),
+}));
+
+const ModernPaper = styled(Paper)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  background: '#ffffff',
+  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  border: '1px solid rgba(226, 232, 240, 0.8)',
+  overflow: 'hidden',
+  animation: `${fadeInUp} 0.8s ease-out`,
+}));
+
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.spacing(3),
+  padding: theme.spacing(1.5, 3),
+  fontWeight: 600,
+  textTransform: 'none',
+  fontSize: '1rem',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+  },
+}));
+
+const StyledTableHead = styled(TableHead)(({ theme }) => ({
+  background: '#0f172a !important',
+  '& .MuiTableCell-root': {
+    background: 'transparent !important',
+    backgroundColor: 'transparent !important',
+    color: 'white !important',
+    fontWeight: '700 !important',
+    fontSize: '0.9rem !important',
+    borderBottom: 'none !important',
+    padding: `${theme.spacing(2)} !important`,
+  },
+}));
 
 // Interface for user data display
 interface AdminUserView {
@@ -293,31 +350,59 @@ export default function UserManagementPage() {
    };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          User Management
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleCreateUserClick}
-          disabled={isLoading} // Disable if initial data is loading
-        >
-          Create User
-        </Button>
-      </Box>
+    <ModernContainer maxWidth="lg">
+      <Fade in={true} timeout={800}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography 
+            variant="h4" 
+            component="h1"
+            sx={{
+              fontWeight: 600,
+              color: '#0f172a',
+              display: 'flex',
+              alignItems: 'center',
+              '&::before': {
+                content: '""',
+                width: 4,
+                height: 32,
+                backgroundColor: '#0ea5e9',
+                borderRadius: 2,
+                mr: 2,
+              },
+            }}
+          >
+            User Management
+          </Typography>
+          <ModernButton
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleCreateUserClick}
+            disabled={isLoading}
+            sx={{
+              background: '#0ea5e9',
+              '&:hover': {
+                background: '#0284c7',
+              },
+            }}
+          >
+            Create User
+          </ModernButton>
+        </Box>
+      </Fade>
 
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>
       ) : isError ? (
-        <Alert severity="error">Error loading users: {error?.message}</Alert>
+        <Fade in={true} timeout={600}>
+          <Alert severity="error" sx={{ borderRadius: 2 }}>Error loading users: {error?.message}</Alert>
+        </Fade>
       ) : (
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="user management table">
-            <TableHead sx={{ backgroundColor: 'grey.200' }}>
+        <ModernPaper>
+          <TableContainer>
+            <Table sx={{ minWidth: 650 }} aria-label="user management table">
+              <StyledTableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>Email</TableCell>
@@ -327,7 +412,7 @@ export default function UserManagementPage() {
                 <TableCell align="center">Active Status Control</TableCell>
                 <TableCell align="center">Reset Password</TableCell>
               </TableRow>
-            </TableHead>
+              </StyledTableHead>
             <TableBody>
               {users && users.length > 0 ? (
                 users.map((user) => (
@@ -415,8 +500,9 @@ export default function UserManagementPage() {
                 </TableRow>
               )}
             </TableBody>
-          </Table>
-        </TableContainer>
+            </Table>
+          </TableContainer>
+        </ModernPaper>
       )}
 
       {/* --- Render Create User Dialog --- */}
@@ -483,6 +569,6 @@ export default function UserManagementPage() {
          </MuiAlert>
        </Snackbar>
 
-    </Container>
+    </ModernContainer>
   );
 }

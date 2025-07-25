@@ -1,14 +1,6 @@
 {
   "mcpServers": {
-    "browsertool": {
-        "command": "npx",
-        "args": [
-          "-y",
-          "@agentdeskai/browser-tools-mcp@latest",
-          "--port=3025"
-        ]
-        },
-     "supabase": {
+    "supabase": {
       "command": "npx",
       "args": [
         "-y",
