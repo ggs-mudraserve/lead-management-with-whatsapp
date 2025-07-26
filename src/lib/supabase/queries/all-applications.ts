@@ -65,10 +65,16 @@ export async function getBankApplications(
 
   // Get the user's role from the auth context
   const { data: { user } } = await supabaseClient.auth.getUser();
+  
+  // Add validation to prevent UUID errors
+  if (!user?.id || user.id === 'undefined' || user.id === 'null') {
+    throw new Error('User not authenticated or invalid user ID');
+  }
+  
   const { data: profile } = await supabaseClient
     .from('profile')
     .select('role')
-    .eq('id', user?.id)
+    .eq('id', user.id)
     .single();
 
   const userRole = profile?.role;
@@ -125,11 +131,27 @@ export async function getBankApplications(
   console.log('Calling RPC get_all_filtered_applications with params:', JSON.stringify(params, null, 2));
 
   try {
-    const { data: rpcResponse, error } = await supabase
-      .rpc('get_all_filtered_applications', params);
+    // Add retry logic for RPC calls to handle transient issues
+    let retryCount = 0;
+    const maxRetries = 2;
+    let rpcResponse, error;
+
+    while (retryCount <= maxRetries) {
+      const result = await supabase.rpc('get_all_filtered_applications', params);
+      rpcResponse = result.data;
+      error = result.error;
+      
+      if (!error) break;
+      
+      retryCount++;
+      if (retryCount <= maxRetries) {
+        console.warn(`RPC call failed (attempt ${retryCount}), retrying...`, error);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Progressive delay
+      }
+    }
 
     if (error) {
-      console.error('RPC Error fetching bank applications:', error);
+      console.error('RPC Error fetching bank applications after retries:', error);
       throw new Error('Could not fetch bank applications: ' + error.message);
     }
 
@@ -168,10 +190,16 @@ export async function getAllFilteredBankApplications(
 
     // Get the user's role from the auth context
     const { data: { user } } = await supabaseClient.auth.getUser();
+    
+    // Add validation to prevent UUID errors
+    if (!user?.id || user.id === 'undefined' || user.id === 'null') {
+      throw new Error('User not authenticated or invalid user ID');
+    }
+    
     const { data: profile } = await supabaseClient
         .from('profile')
         .select('role')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single();
 
     const userRole = profile?.role;

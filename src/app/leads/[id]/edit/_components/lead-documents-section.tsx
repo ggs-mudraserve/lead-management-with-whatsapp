@@ -56,6 +56,12 @@ const MULTI_UPLOAD_TYPES = new Set(['SAL SLIP', 'BANK STATEMENT', 'OTHER DOC']);
 
 // Fetch function for document metadata
 async function fetchLeadDocumentsMetadata(leadId: string): Promise<LeadDocumentMetadata[]> {
+    // Check authentication before querying
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id || user.id === 'undefined' || user.id === 'null') {
+        throw new Error("User not authenticated. Please refresh the page and try again.");
+    }
+
     const { data, error } = await supabase
         .from('lead_documents')
         .select('id, document_type, file_name, created_at, storage_object_path') // Added storage_object_path
@@ -71,6 +77,12 @@ async function fetchLeadDocumentsMetadata(leadId: string): Promise<LeadDocumentM
 
 // Function to delete document metadata from the database
 async function deleteDocumentMetadata(documentId: string): Promise<void> {
+    // Check authentication before deleting
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id || user.id === 'undefined' || user.id === 'null') {
+        throw new Error("User not authenticated. Please refresh the page and try again.");
+    }
+
     const { error } = await supabase
         .from('lead_documents')
         .delete()
@@ -260,6 +272,12 @@ interface HandleDocumentUploadParams {
 async function uploadAndRecordDocument({ leadId, documentType, file }: UploadAndRecordPayload): Promise<RpcResponse> {
     if (!file) throw new Error("No file selected.");
 
+    // Check authentication before proceeding
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id || user.id === 'undefined' || user.id === 'null') {
+        throw new Error("User not authenticated. Please refresh the page and try again.");
+    }
+
     const fileExt = file.name.split('.').pop();
     const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
     const storagePath = `${leadId}/${documentType}/${uniqueFileName}`; // Using nested structure
@@ -280,18 +298,34 @@ async function uploadAndRecordDocument({ leadId, documentType, file }: UploadAnd
 
     console.log('Calling RPC handle_document_upload with:', { p_lead_id: leadId, p_document_type: documentType, p_file_name: file.name, p_storage_path: recordedStoragePath });
 
-    // Correct rpc call signature: function name type, then params type.
-    // Return type (RpcResponse) is inferred by Supabase client based on function definition.
-    const { data: rpcData, error: rpcError } = await supabase.rpc<
-        'handle_document_upload', // Function name as string literal type
-        { Args: HandleDocumentUploadParams; Returns: RpcResponse } // Args and expected Returns structure
-    >(
-        'handle_document_upload', // Function name argument
-        { p_lead_id: leadId, p_document_type: documentType, p_file_name: file.name, p_storage_path: recordedStoragePath } // Parameters argument
-    );
+    // Add retry logic for RPC calls to handle transient authentication issues
+    let retryCount = 0;
+    const maxRetries = 2;
+    let rpcData, rpcError;
+
+    while (retryCount <= maxRetries) {
+        const result = await supabase.rpc<
+            'handle_document_upload', // Function name as string literal type
+            { Args: HandleDocumentUploadParams; Returns: RpcResponse } // Args and expected Returns structure
+        >(
+            'handle_document_upload', // Function name argument
+            { p_lead_id: leadId, p_document_type: documentType, p_file_name: file.name, p_storage_path: recordedStoragePath } // Parameters argument
+        );
+        
+        rpcData = result.data;
+        rpcError = result.error;
+        
+        if (!rpcError) break;
+        
+        retryCount++;
+        if (retryCount <= maxRetries) {
+            console.warn(`Document upload RPC failed (attempt ${retryCount}), retrying...`, rpcError);
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Progressive delay
+        }
+    }
 
     if (rpcError) {
-        console.error('RPC Error:', rpcError);
+        console.error('RPC Error after retries:', rpcError);
         throw new Error(`Failed to record document metadata: ${rpcError.message}`);
     }
      console.log('RPC Response:', rpcData);
@@ -353,10 +387,19 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
     const [validatedDocuments, setValidatedDocuments] = useState<LeadDocumentMetadata[]>([]);
     const [isValidating, setIsValidating] = useState(false);
 
-    // Fetch Query
+    // Fetch Query with authentication optimization
     const { data: documentsMetadata, isLoading, error, isError } = useQuery<LeadDocumentMetadata[], Error>({
         queryKey: ['leadDocuments', leadId],
         queryFn: () => fetchLeadDocumentsMetadata(leadId),
+        staleTime: 30 * 1000, // 30 seconds
+        retry: (failureCount, error) => {
+            // Don't retry authentication errors
+            if (error.message.includes('not authenticated')) {
+                return false;
+            }
+            return failureCount < 2;
+        },
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff
     });
 
     // Delete Document Metadata Mutation
@@ -445,7 +488,13 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             setSnackbarOpen(true);
         },
         onError: (error) => {
-            setSnackbarMessage(`Upload failed: ${error.message}`);
+            let errorMessage = `Upload failed: ${error.message}`;
+            if (error.message.includes('not authenticated')) {
+                errorMessage = 'Please refresh the page and try again. Your session may have expired.';
+            } else if (error.message.includes('Permission denied')) {
+                errorMessage = 'You do not have permission to upload documents for this lead.';
+            }
+            setSnackbarMessage(errorMessage);
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
         },
@@ -480,7 +529,13 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             setSnackbarOpen(true);
         },
         onError: (error) => {
-            setSnackbarMessage(`Upload failed: ${error.message}`);
+            let errorMessage = `Upload failed: ${error.message}`;
+            if (error.message.includes('not authenticated')) {
+                errorMessage = 'Please refresh the page and try again. Your session may have expired.';
+            } else if (error.message.includes('Permission denied')) {
+                errorMessage = 'You do not have permission to upload documents for this lead.';
+            }
+            setSnackbarMessage(errorMessage);
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
         },

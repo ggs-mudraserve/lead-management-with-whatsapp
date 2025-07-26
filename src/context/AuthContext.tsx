@@ -36,6 +36,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
+  // Add UUID validation to prevent "undefined" errors
+  if (!userId || userId === 'undefined' || userId === 'null') {
+    console.error('Invalid userId provided to fetchProfile:', userId);
+    return null;
+  }
+
   try {
     const { data, error, status } = await supabase
       .from('profile')
@@ -76,16 +82,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let ignore = false;
-    async function getInitialSession() {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!ignore) {
-        setSession(session);
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          setProfile(profile);
+    let profileFetchTimeout: NodeJS.Timeout | null = null;
+
+    // Debounced profile fetching to prevent multiple rapid calls
+    const debouncedFetchProfile = (userId: string) => {
+      if (profileFetchTimeout) {
+        clearTimeout(profileFetchTimeout);
+      }
+      profileFetchTimeout = setTimeout(async () => {
+        if (!ignore) {
+          const profile = await fetchProfile(userId);
+          if (!ignore) {
+            setProfile(profile);
+            setLoading(false);
+          }
         }
-        setLoading(false);
+      }, 300); // 300ms debounce
+    };
+
+    async function getInitialSession() {
+      try {
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!ignore) {
+          setSession(session);
+          if (session?.user?.id) {
+            debouncedFetchProfile(session.user.id);
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     }
 
@@ -93,25 +124,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       ignore = true;
+      if (profileFetchTimeout) {
+        clearTimeout(profileFetchTimeout);
+      }
     };
   }, []);
 
   useEffect(() => {
+    let ignore = false;
+    let authStateTimeout: NodeJS.Timeout | null = null;
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
-        if (event === 'SIGNED_OUT') {
-          setProfile(null);
-        } else if (event === 'SIGNED_IN') {
-          if (session?.user) {
-            const profile = await fetchProfile(session.user.id);
-            setProfile(profile);
-          }
+        console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (ignore) return;
+
+        // Clear any pending auth state changes
+        if (authStateTimeout) {
+          clearTimeout(authStateTimeout);
         }
+
+        // Debounce auth state changes to prevent rapid fire
+        authStateTimeout = setTimeout(async () => {
+          if (ignore) return;
+
+          setSession(session);
+          
+          if (event === 'SIGNED_OUT') {
+            setProfile(null);
+            setLoading(false);
+          } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            if (session?.user?.id) {
+              setLoading(true);
+              const profile = await fetchProfile(session.user.id);
+              if (!ignore) {
+                setProfile(profile);
+                setLoading(false);
+              }
+            } else {
+              setLoading(false);
+            }
+          } else if (event === 'TOKEN_REFRESHED') {
+            // For token refresh, just update session but keep existing profile
+            setLoading(false);
+          }
+        }, 100); // Shorter debounce for auth state changes
       }
     );
 
     return () => {
+      ignore = true;
+      if (authStateTimeout) {
+        clearTimeout(authStateTimeout);
+      }
       authListener?.subscription.unsubscribe();
     };
   }, []);

@@ -174,7 +174,7 @@ interface AllApplicationsTableProps {
 }
 
 export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const [order, setOrder] = useState<Order>('desc');
   const [orderBy, setOrderBy] = useState<keyof BankApplicationRow>('login_date');
   const [page, setPage] = useState(0);
@@ -205,6 +205,17 @@ export function AllApplicationsTable({ filters }: AllApplicationsTableProps) {
       return result;
     },
     placeholderData: (previousData) => previousData,
+    // Add optimizations to prevent hanging
+    enabled: !loading && !!profile, // Only run when auth is ready
+    staleTime: 30 * 1000, // 30 seconds
+    retry: (failureCount, error) => {
+      // Don't retry auth errors or validation errors
+      if (error.message.includes('not authenticated') || error.message.includes('invalid user ID')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff
   });
 
   // Use the filtered data directly
