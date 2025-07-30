@@ -94,8 +94,8 @@ const schema = z.object({
     .refine(val => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), {
         message: 'Disburse Date cannot be in the future',
     })
-    .refine(val => !val || dayjs(val).isAfter(dayjs().subtract(1, 'month').subtract(1, 'day')), {
-        message: 'Disburse Date cannot be older than 1 month',
+    .refine(val => !val || dayjs(val).isAfter(dayjs().subtract(3, 'month').subtract(1, 'day')), {
+        message: 'Disburse Date cannot be older than 3 months',
     }),
   lead_stage: z.enum(LEAD_STAGE_OPTIONS),
 }).refine(data => {
