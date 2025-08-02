@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 import {
@@ -32,7 +32,6 @@ import {
   TablePagination,
 } from '@mui/material';
 import { styled, keyframes } from '@mui/material/styles';
-import Fade from '@mui/material/Fade';
 import Grow from '@mui/material/Grow';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import EditIcon from '@mui/icons-material/Edit';
@@ -250,6 +249,7 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
     console.log(`[fetchMissedOpportunities] Not filtering leads with NULL lead_owner for user role: ${filters.userRole}`);
   }
 
+  // Server-side filtering for segments
   if (filters.segments.length > 0) { query = query.in('segment', filters.segments); }
   if (filters.ownerIds.length > 0) { query = query.in('lead_owner', filters.ownerIds); }
   if (filters.creationDateStart) { query = query.gte('created_at', filters.creationDateStart.toISOString()); }
@@ -259,6 +259,15 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
 
   console.log('[fetchMissedOpportunities] Executing Supabase query...');
 
+  // For segments filtering, we need to get a sufficient amount of data since many leads 
+  // will be filtered out due to having bank applications. Fetch more to ensure enough results.
+  let fetchMultiplier = 1;
+  if (filters.segments.length > 0) {
+    // When filtering by segment, many leads might have bank applications
+    // Fetch 5x more to ensure we have enough after filtering
+    fetchMultiplier = 5;
+  }
+
   // Get the total count first (without pagination)
   const { count, error: countError } = await query;
 
@@ -267,15 +276,16 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
     throw new Error('Failed to fetch leads count.');
   }
 
-  // Apply pagination
-  const from = filters.page * filters.rowsPerPage;
-  const to = from + filters.rowsPerPage - 1;
+  // Apply pagination with multiplier for segment filtering
+  const adjustedRowsPerPage = filters.rowsPerPage * fetchMultiplier;
+  const from = filters.page * adjustedRowsPerPage;
+  const to = from + adjustedRowsPerPage - 1;
   query = query.range(from, to);
 
   // Execute the query with pagination
   const { data, error } = await query;
 
-  console.log(`[fetchMissedOpportunities] Raw data received (page ${filters.page}, rows ${filters.rowsPerPage}):`, data);
+  console.log(`[fetchMissedOpportunities] Raw data received (page ${filters.page}, rows ${filters.rowsPerPage}, multiplier ${fetchMultiplier}, actual fetched: ${data?.length || 0}):`, data);
   console.log('[fetchMissedOpportunities] Error received:', error);
 
   if (error) {
@@ -316,14 +326,30 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
       console.warn("Team filtering applied client-side...");
   }
 
-  console.log('[fetchMissedOpportunities] Final processed data:', processedData);
+  console.log('[fetchMissedOpportunities] Final processed data before pagination:', processedData);
 
-  // Calculate the actual count after client-side filtering
-  const filteredCount = count || 0;
+  // Apply client-side pagination to the filtered results when using segment filtering
+  if (filters.segments.length > 0) {
+    const startIndex = 0; // Since we're fetching with multiplier, start from beginning
+    const endIndex = filters.rowsPerPage; // Take only the requested page size
+    const paginatedData = processedData.slice(startIndex, endIndex);
+    
+    console.log('[fetchMissedOpportunities] Applied client-side pagination:', {
+      totalFiltered: processedData.length,
+      requestedPageSize: filters.rowsPerPage,
+      actualReturned: paginatedData.length
+    });
+    
+    return {
+      data: paginatedData as MissedOpportunityLead[],
+      count: count || 0 // Keep the original total count for pagination
+    };
+  }
 
+  // For non-segment filtering, return all processed data
   return {
     data: processedData as MissedOpportunityLead[],
-    count: filteredCount
+    count: count || 0
   };
 };
 
@@ -331,6 +357,71 @@ const fetchMissedOpportunities = async (filters: Filters): Promise<PaginatedMiss
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
 const MenuProps = { PaperProps: { style: { maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP, width: 250 } } };
+
+// --- Memoized Components ---
+interface TableRowProps {
+  row: MissedOpportunityLead;
+  allReasons: MissedReason[];
+  onReasonChange: (leadId: string, reasonId: string, isChecked: boolean) => void;
+  isLoading: boolean;
+  formatDate: (dateString: string | null) => string;
+}
+
+const MemoizedTableRow = React.memo(({ 
+  row, 
+  allReasons, 
+  onReasonChange, 
+  isLoading, 
+  formatDate 
+}: TableRowProps) => {
+  
+  // Memoize checkbox group to prevent unnecessary re-renders
+  const checkboxGroup = useMemo(() => (
+    <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+      {allReasons.map((reason) => (
+        <FormControlLabel
+          key={reason.id}
+          control={
+            <Checkbox
+              size="small"
+              checked={row.selected_reason_ids.includes(reason.id)}
+              onChange={(e) => onReasonChange(row.id, reason.id, e.target.checked)}
+              disabled={isLoading}
+            />
+          }
+          label={reason.reason}
+          sx={{ mr: 1, mb: 0 }}
+        />
+      ))}
+      {isLoading && <CircularProgress size={16} sx={{ ml: 1 }}/>}
+    </FormGroup>
+  ), [row.id, row.selected_reason_ids, allReasons, onReasonChange, isLoading]);
+
+  return (
+    <StyledTableRow key={row.id}>
+      <TableCell>{row.segment ?? 'N/A'}</TableCell>
+      <TableCell>{row.first_name ?? 'N/A'}</TableCell>
+      <TableCell>{row.last_name ?? ''}</TableCell>
+      <TableCell>{row.owner_first_name || row.owner_last_name ? `${row.owner_first_name ?? ''} ${row.owner_last_name ?? ''}`.trim() : 'Unassigned'}</TableCell>
+      <TableCell>{row.team_name ?? 'Unassigned'}</TableCell>
+      <TableCell>{formatDate(row.created_at)}</TableCell>
+      <TableCell>
+        {checkboxGroup}
+      </TableCell>
+      <TableCell align="center">
+        <Tooltip title="View/Edit Lead">
+          <Link href={`/leads/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
+            <ModernIconButton size="small">
+              <EditIcon fontSize="small" />
+            </ModernIconButton>
+          </Link>
+        </Tooltip>
+      </TableCell>
+    </StyledTableRow>
+  );
+});
+
+MemoizedTableRow.displayName = 'MemoizedTableRow';
 
 // --- Component ---
 export default function MissedOpportunitiesTable() {
@@ -371,6 +462,16 @@ export default function MissedOpportunitiesTable() {
     }
   }, [profile]);
 
+  // Cleanup debounced changes on unmount
+  useEffect(() => {
+    const currentChanges = debouncedChanges.current;
+    return () => {
+      Object.values(currentChanges).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
+  }, []);
+
   const { data: response, isLoading, error, isError } = useQuery<PaginatedMissedOpportunitiesResponse, Error>({
     queryKey: ['missedOpportunities', filters],
     queryFn: () => fetchMissedOpportunities(filters),
@@ -379,7 +480,7 @@ export default function MissedOpportunitiesTable() {
 
   const data = response?.data ?? [];
 
-  // Mutations
+  // Mutations with optimistic updates
   const addReasonMutation = useMutation({
     mutationFn: async ({ leadId, reasonId }: { leadId: string; reasonId: string }) => {
       const { error } = await supabase
@@ -387,12 +488,43 @@ export default function MissedOpportunitiesTable() {
         .insert({ lead_id: leadId, reason_id: reasonId });
       if (error) throw error;
     },
+    onMutate: async ({ leadId, reasonId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['missedOpportunities', filters] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(['missedOpportunities', filters]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(['missedOpportunities', filters], (oldData: PaginatedMissedOpportunitiesResponse | undefined) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          data: oldData.data.map((lead) => 
+            lead.id === leadId 
+              ? { ...lead, selected_reason_ids: [...lead.selected_reason_ids, reasonId] }
+              : lead
+          )
+        };
+      });
+
+      return { previousData };
+    },
     onSuccess: () => {
       setSnackbar({ open: true, message: 'Reason added.', severity: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['missedOpportunities', filters] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Revert optimistic update on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['missedOpportunities', filters], context.previousData);
+      }
       setSnackbar({ open: true, message: `Failed to add reason: ${error.message}`, severity: 'error' });
+    },
+    onSettled: () => {
+      // Refetch to ensure data consistency (but only on error or after a delay)
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['missedOpportunities', filters] });
+      }, 5000);
     },
   });
 
@@ -404,12 +536,43 @@ export default function MissedOpportunitiesTable() {
         .match({ lead_id: leadId, reason_id: reasonId });
       if (error) throw error;
     },
+    onMutate: async ({ leadId, reasonId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['missedOpportunities', filters] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(['missedOpportunities', filters]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(['missedOpportunities', filters], (oldData: PaginatedMissedOpportunitiesResponse | undefined) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          data: oldData.data.map((lead) => 
+            lead.id === leadId 
+              ? { ...lead, selected_reason_ids: lead.selected_reason_ids.filter(id => id !== reasonId) }
+              : lead
+          )
+        };
+      });
+
+      return { previousData };
+    },
     onSuccess: () => {
       setSnackbar({ open: true, message: 'Reason removed.', severity: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['missedOpportunities', filters] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Revert optimistic update on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['missedOpportunities', filters], context.previousData);
+      }
       setSnackbar({ open: true, message: `Failed to remove reason: ${error.message}`, severity: 'error' });
+    },
+    onSettled: () => {
+      // Refetch to ensure data consistency (but only on error or after a delay)
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['missedOpportunities', filters] });
+      }, 5000);
     },
   });
 
@@ -420,13 +583,27 @@ export default function MissedOpportunitiesTable() {
     setFilters(prev => ({ ...prev, [filterName]: value, page: 0 }));
   };
 
-  const handleReasonChange = (leadId: string, reasonId: string, isChecked: boolean) => {
-    if (isChecked) {
-      addReasonMutation.mutate({ leadId, reasonId });
-    } else {
-      deleteReasonMutation.mutate({ leadId, reasonId });
+  // Debounced reason change handler to prevent rapid-fire API calls
+  const debouncedChanges = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  
+  const handleReasonChange = useCallback((leadId: string, reasonId: string, isChecked: boolean) => {
+    const changeKey = `${leadId}-${reasonId}`;
+    
+    // Clear any existing timeout for this specific checkbox
+    if (debouncedChanges.current[changeKey]) {
+      clearTimeout(debouncedChanges.current[changeKey]);
     }
-  };
+    
+    // Set a new timeout for this change
+    debouncedChanges.current[changeKey] = setTimeout(() => {
+      if (isChecked) {
+        addReasonMutation.mutate({ leadId, reasonId });
+      } else {
+        deleteReasonMutation.mutate({ leadId, reasonId });
+      }
+      delete debouncedChanges.current[changeKey];
+    }, 150); // 150ms debounce
+  }, [addReasonMutation, deleteReasonMutation]);
 
   const handleCloseSnackbar = (_event?: React.SyntheticEvent | Event, reason?: string) => {
       if (reason === 'clickaway') return;
@@ -445,11 +622,11 @@ export default function MissedOpportunitiesTable() {
     setFilters(prev => ({ ...prev, rowsPerPage: newRowsPerPage, page: 0 }));
   };
 
-  // Helpers
-  const formatDate = (dateString: string | null) => {
+  // Helpers - memoize expensive operations
+  const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return 'N/A';
     try { return format(new Date(dateString), 'dd-MMM-yyyy'); } catch { return 'Invalid Date'; }
-  };
+  }, []);
   const ownerMap = useMemo(() => {
     if (!owners) return {};
     return owners.reduce((acc, owner) => { acc[owner.id] = `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim(); return acc; }, {} as Record<string, string>);
@@ -469,6 +646,12 @@ export default function MissedOpportunitiesTable() {
   // Constants
   const segmentOptions: Database['public']['Enums']['segment_type'][] = ['PL', 'BL', 'PL_DIGITAL', 'BL_DIGITAL'];
   const canExport = profile && ['admin', 'backend'].includes(profile.role ?? '');
+  
+  // Memoize loading state for checkboxes
+  const isCheckboxLoading = useMemo(() => 
+    addReasonMutation.isPending || deleteReasonMutation.isPending, 
+    [addReasonMutation.isPending, deleteReasonMutation.isPending]
+  );
 
   // Export Handler (Client-side CSV)
   const handleExport = async () => {
@@ -762,43 +945,14 @@ export default function MissedOpportunitiesTable() {
                   </StyledTableRow>
                 ) : (
                   data.map((row) => (
-                    <StyledTableRow key={row.id}>
-                      <TableCell>{row.segment ?? 'N/A'}</TableCell>
-                      <TableCell>{row.first_name ?? 'N/A'}</TableCell>
-                      <TableCell>{row.last_name ?? ''}</TableCell>
-                      <TableCell>{row.owner_first_name || row.owner_last_name ? `${row.owner_first_name ?? ''} ${row.owner_last_name ?? ''}`.trim() : 'Unassigned'}</TableCell>
-                      <TableCell>{row.team_name ?? 'Unassigned'}</TableCell>
-                      <TableCell>{formatDate(row.created_at)}</TableCell>
-                      <TableCell>
-                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-                          {(allReasons || []).map((reason) => (
-                            <FormControlLabel
-                              key={reason.id}
-                              control={
-                                <Checkbox
-                                  size="small"
-                                  checked={row.selected_reason_ids.includes(reason.id)}
-                                  onChange={(e) => handleReasonChange(row.id, reason.id, e.target.checked)}
-                                  disabled={addReasonMutation.isPending || deleteReasonMutation.isPending}
-                                />
-                              }
-                              label={reason.reason}
-                              sx={{ mr: 1, mb: 0 }}
-                            />
-                          ))}
-                          {(addReasonMutation.isPending || deleteReasonMutation.isPending) && <CircularProgress size={16} sx={{ ml: 1 }}/>}
-                        </FormGroup>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="View/Edit Lead">
-                          <Link href={`/leads/${row.id}/edit`} passHref target="_blank" rel="noopener noreferrer">
-                            <ModernIconButton size="small">
-                              <EditIcon fontSize="small" />
-                            </ModernIconButton>
-                          </Link>
-                        </Tooltip>
-                      </TableCell>
-                    </StyledTableRow>
+                    <MemoizedTableRow
+                      key={row.id}
+                      row={row}
+                      allReasons={allReasons || []}
+                      onReasonChange={handleReasonChange}
+                      isLoading={isCheckboxLoading}
+                      formatDate={formatDate}
+                    />
                   ))
                 )}
               </TableBody>

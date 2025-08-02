@@ -1449,6 +1449,73 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_tasks: {
+        Row: {
+          assigned_to: string
+          close_reason: Database["public"]["Enums"]["close_reason_enum"] | null
+          closed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          original_date: string
+          scheduled_date: string
+          status: Database["public"]["Enums"]["task_status_enum"]
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to: string
+          close_reason?: Database["public"]["Enums"]["close_reason_enum"] | null
+          closed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          original_date?: string
+          scheduled_date?: string
+          status?: Database["public"]["Enums"]["task_status_enum"]
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string
+          close_reason?: Database["public"]["Enums"]["close_reason_enum"] | null
+          closed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          original_date?: string
+          scheduled_date?: string
+          status?: Database["public"]["Enums"]["task_status_enum"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       profile: {
         Row: {
           android_login: boolean
@@ -2044,6 +2111,7 @@ export type Database = {
     Enums: {
       bulk_send_detail_status_enum: "sent" | "failed" | "skipped" | "pending"
       bulk_send_status_enum: "queued" | "processing" | "completed" | "failed"
+      close_reason_enum: "customer_ni" | "low_sal" | "more_than_3_days_follow" | "docs_received" | "cibil_related"
       conversation_status_enum: "open" | "closed"
       lead_stage:
         | "New"
@@ -2071,6 +2139,7 @@ export type Database = {
       message_sender_type_enum: "customer" | "agent" | "chatbot" | "system"
       rental_status: "Rented" | "Owned"
       segment_type: "PL" | "BL" | "PL_DIGITAL" | "BL_DIGITAL"
+      task_status_enum: "open" | "closed"
       user_role:
         | "admin"
         | "backend"

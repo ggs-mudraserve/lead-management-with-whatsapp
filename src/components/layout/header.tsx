@@ -185,6 +185,7 @@ export function Header() {
   // Individual links based on PRD 3.6 visibility
   const disbursedLink = { label: 'Disbursed', href: '/disbursed-applications' };
   const missedLink = { label: 'Missed', href: '/missed-opportunities' };
+  const dailyTasksLink = { label: 'Daily Tasks', href: '/daily-tasks' };
 
   // Removed agentTlLinks (Search box is handled separately)
 
@@ -207,10 +208,11 @@ export function Header() {
         // Search box is separate UI element, not a link here
     }
 
-    // Add links visible to Agent, TL, Admin (PRD 3.6 for Disbursed/Missed)
+    // Add links visible to Agent, TL, Admin (PRD 3.6 for Disbursed/Missed/Daily Tasks)
     if (role === 'agent' || role === 'team_leader' || role === 'admin') {
       menuLinks.push(disbursedLink);
       menuLinks.push(missedLink);
+      menuLinks.push(dailyTasksLink);
     }
 
     // Add links visible only to Backend (Currently none specific other than search/common)
