@@ -27,6 +27,7 @@ export interface DailyTaskWithDetails extends DailyTask {
     team_id: string | null;
     team_name: string | null;
   };
+  missed_opportunity_reason?: string | null;
 }
 
 // Filter interface for queries
@@ -80,7 +81,12 @@ export const fetchDailyTasks = async (filters: DailyTaskFilters): Promise<Pagina
         segment,
         first_name,
         last_name,
-        created_at
+        created_at,
+        lead_missed_reasons!left(
+          missed_opportunity:missed_opportunity!lead_missed_reasons_reason_id_fkey(
+            reason
+          )
+        )
       ),
       assigned_user:profile!daily_tasks_assigned_to_fkey(
         id,
@@ -100,9 +106,10 @@ export const fetchDailyTasks = async (filters: DailyTaskFilters): Promise<Pagina
 
   console.log('Daily tasks query filters:', { segments, status, scheduledDate });
 
-  // Filter by scheduled date (default to today)
-  const targetDate = scheduledDate || new Date().toISOString().split('T')[0];
-  query = query.eq('scheduled_date', targetDate);
+  // Filter by scheduled date (only if provided)
+  if (scheduledDate) {
+    query = query.eq('scheduled_date', scheduledDate);
+  }
 
   // Filter by status
   if (status.length > 0) {
@@ -161,13 +168,18 @@ export const fetchDailyTasks = async (filters: DailyTaskFilters): Promise<Pagina
     return { data: [], count: 0 };
   }
 
-  // Process the data to include team information
-  const processedData = data.map((task: any) => ({
+  // Process the data to include team information and missed opportunity reason
+  const processedData = data.map((task) => ({
     ...task,
     team_info: {
-      team_id: task.assigned_user?.team_members?.[0]?.team?.id ?? null,
-      team_name: task.assigned_user?.team_members?.[0]?.team?.name ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      team_id: (task as any).assigned_user?.team_members?.[0]?.team?.id ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      team_name: (task as any).assigned_user?.team_members?.[0]?.team?.name ?? null,
     },
+    // Extract missed opportunity reason
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    missed_opportunity_reason: (task as any).lead?.lead_missed_reasons?.[0]?.missed_opportunity?.reason ?? null,
   }));
 
   // Filter by team IDs and segments if specified (client-side filtering)
@@ -227,7 +239,7 @@ export const fetchAdminDailyTasks = async (filters: AdminDailyTaskFilters): Prom
     return fetchDailyTasks(modifiedFilters);
   }
 
-  // Apply other filters from base function
+  // For admin users, allow viewing all dates if no scheduledDate is specified
   return fetchDailyTasks(baseFilters);
 };
 
@@ -286,6 +298,27 @@ export const updateTaskNotes = async (taskId: string, notes: string): Promise<vo
   if (error) {
     console.error('Error updating task notes:', error);
     throw new Error(`Failed to update task notes: ${error.message}`);
+  }
+};
+
+/**
+ * Reopen a closed task
+ */
+export const reopenTask = async (taskId: string, notes?: string): Promise<void> => {
+  const { error } = await supabase
+    .from('daily_tasks')
+    .update({
+      status: 'open',
+      close_reason: null,
+      closed_at: null,
+      notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', taskId);
+
+  if (error) {
+    console.error('Error reopening task:', error);
+    throw new Error(`Failed to reopen task: ${error.message}`);
   }
 };
 

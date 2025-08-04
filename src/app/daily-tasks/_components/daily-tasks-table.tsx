@@ -34,6 +34,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import EditIcon from '@mui/icons-material/Edit';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import DownloadIcon from '@mui/icons-material/Download';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Dayjs } from 'dayjs';
@@ -44,13 +45,12 @@ import {
   fetchAdminDailyTasks,
   closeTask,
   rescheduleTask,
+  reopenTask,
   type DailyTaskWithDetails,
   type DailyTaskFilters,
-  type AdminDailyTaskFilters,
   type CloseReason,
 } from '@/lib/supabase/queries/daily-tasks';
 import { Database } from '@/lib/supabase/database.types';
-import AdminTaskFilters from './admin-task-filters';
 
 // Keyframes for animations
 const fadeInUp = keyframes`
@@ -186,18 +186,6 @@ interface Filters {
   userRole?: string | null;
 }
 
-interface AdminFilters {
-  viewType: 'agent' | 'segment' | 'team' | 'date' | 'status' | null;
-  dateRange: {
-    startDate: Dayjs | null;
-    endDate: Dayjs | null;
-  };
-  quickDateFilter: 'today' | 'week' | 'month' | 'custom' | null;
-  segments: string[];
-  ownerIds: string[];
-  teamIds: string[];
-  status: string[];
-}
 
 // Constants
 const ITEM_HEIGHT = 48;
@@ -256,7 +244,7 @@ export default function DailyTasksTable() {
     segments: [],
     ownerIds: [],
     teamIds: [],
-    scheduledDate: dayjs(),
+    scheduledDate: profile?.role === 'admin' ? null : dayjs(),
     status: ['open'],
     page: 0,
     rowsPerPage: 10,
@@ -267,15 +255,6 @@ export default function DailyTasksTable() {
     message: '',
     severity: 'success',
   });
-  const [adminFilters, setAdminFilters] = useState<AdminFilters>({
-    viewType: null,
-    dateRange: { startDate: null, endDate: null },
-    quickDateFilter: null,
-    segments: [],
-    ownerIds: [],
-    teamIds: [],
-    status: ['open'],
-  });
 
   // Update filters when profile changes
   useEffect(() => {
@@ -283,6 +262,8 @@ export default function DailyTasksTable() {
       setFilters(prev => ({
         ...prev,
         userRole: profile.role,
+        // Set scheduledDate to null for admin, today for others (only if not already set)
+        scheduledDate: profile.role === 'admin' ? null : (prev.scheduledDate || dayjs()),
       }));
     }
   }, [profile]);
@@ -299,8 +280,8 @@ export default function DailyTasksTable() {
   });
 
   // Convert filters to API format
-  const apiFilters = useMemo((): DailyTaskFilters | AdminDailyTaskFilters => {
-    const baseFilters: DailyTaskFilters = {
+  const apiFilters = useMemo((): DailyTaskFilters => {
+    return {
       segments: filters.segments,
       ownerIds: filters.ownerIds,
       teamIds: filters.teamIds,
@@ -310,36 +291,14 @@ export default function DailyTasksTable() {
       page: filters.page,
       rowsPerPage: filters.rowsPerPage,
     };
-
-    // If admin, merge with admin filters
-    if (profile?.role === 'admin') {
-      const adminApiFilters: AdminDailyTaskFilters = {
-        ...baseFilters,
-        viewType: adminFilters.viewType,
-        dateRange: adminFilters.dateRange.startDate || adminFilters.dateRange.endDate ? {
-          startDate: adminFilters.dateRange.startDate?.format('YYYY-MM-DD') || '',
-          endDate: adminFilters.dateRange.endDate?.format('YYYY-MM-DD') || '',
-        } : undefined,
-        // Only override base filters with admin filters if admin filters are explicitly different from defaults
-        segments: adminFilters.segments.length > 0 ? adminFilters.segments : baseFilters.segments,
-        ownerIds: adminFilters.ownerIds.length > 0 ? adminFilters.ownerIds : baseFilters.ownerIds,
-        teamIds: adminFilters.teamIds.length > 0 ? adminFilters.teamIds : baseFilters.teamIds,
-        // For status, check if admin filters are different from default ['open']
-        status: (adminFilters.status.length !== 1 || adminFilters.status[0] !== 'open') ? 
-          adminFilters.status as ('open' | 'closed')[] : baseFilters.status,
-      };
-      return adminApiFilters;
-    }
-
-    return baseFilters;
-  }, [filters, adminFilters, profile?.role]);
+  }, [filters]);
 
   const { data: response, isLoading, error, isError } = useQuery({
     queryKey: ['dailyTasks', apiFilters],
     queryFn: () => {
       // Use admin function if user is admin, otherwise use regular function
       if (profile?.role === 'admin') {
-        return fetchAdminDailyTasks(apiFilters as AdminDailyTaskFilters);
+        return fetchAdminDailyTasks(apiFilters);
       }
       return fetchDailyTasks(apiFilters);
     },
@@ -375,6 +334,19 @@ export default function DailyTasksTable() {
     },
   });
 
+  const reopenTaskMutation = useMutation({
+    mutationFn: async ({ taskId, notes }: { taskId: string; notes?: string }) => {
+      await reopenTask(taskId, notes);
+    },
+    onSuccess: () => {
+      setSnackbar({ open: true, message: 'Task reopened successfully.', severity: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks'] });
+    },
+    onError: (error: Error) => {
+      setSnackbar({ open: true, message: `Failed to reopen task: ${error.message}`, severity: 'error' });
+    },
+  });
+
   // Handlers
   const handleFilterChange = (filterName: keyof Filters, value: string[] | Dayjs | null) => {
     setPage(0);
@@ -387,6 +359,10 @@ export default function DailyTasksTable() {
 
   const handleRescheduleTask = (taskId: string, newDate: string) => {
     rescheduleTaskMutation.mutate({ taskId, newDate });
+  };
+
+  const handleReopenTask = (taskId: string, notes?: string) => {
+    reopenTaskMutation.mutate({ taskId, notes });
   };
 
   const handleCloseSnackbar = (_event?: React.SyntheticEvent | Event, reason?: string) => {
@@ -434,26 +410,11 @@ export default function DailyTasksTable() {
 
   const canExport = profile && ['admin', 'backend'].includes(profile.role ?? '');
 
-  const handleAdminFiltersChange = (newFilters: Partial<AdminFilters>) => {
-    setAdminFilters(prev => ({ ...prev, ...newFilters }));
-    setPage(0);
-    setFilters(prev => ({ ...prev, page: 0 }));
-  };
 
   const isAdmin = profile?.role === 'admin';
 
   return (
     <Box>
-      {/* Admin Advanced Filters */}
-      {isAdmin && (
-        <AdminTaskFilters
-          filters={adminFilters}
-          onFiltersChange={handleAdminFiltersChange}
-          owners={owners || []}
-          teams={teams || []}
-          isLoading={isLoadingOwners || isLoadingTeams}
-        />
-      )}
 
       <FilterSection>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -496,38 +457,101 @@ export default function DailyTasksTable() {
           {/* Scheduled Date Filter */}
           <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
             <Grow in={true} timeout={800} style={{ transitionDelay: '100ms' }}>
-              <DatePicker
-                label="Scheduled Date"
-                value={filters.scheduledDate}
-                onChange={(newValue) => handleFilterChange('scheduledDate', newValue)}
-                slotProps={{
-                  textField: {
-                    size: 'small',
-                    fullWidth: true,
-                    sx: {
-                      minWidth: 160,
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        transition: 'all 0.3s ease',
-                        minHeight: 40,
-                        '&:hover': {
-                          transform: 'scale(1.02)',
+              {isAdmin ? (
+                <StyledFormControl fullWidth size="small">
+                  <InputLabel id="date-filter-label">Date Filter</InputLabel>
+                  <Select
+                    labelId="date-filter-label"
+                    value={filters.scheduledDate ? 'specific' : 'all'}
+                    onChange={(e) => {
+                      if (e.target.value === 'all') {
+                        handleFilterChange('scheduledDate', null);
+                      } else if (e.target.value === 'today') {
+                        handleFilterChange('scheduledDate', dayjs());
+                      } else {
+                        // For 'specific', keep current date or set to today if null
+                        handleFilterChange('scheduledDate', filters.scheduledDate || dayjs());
+                      }
+                    }}
+                    input={<OutlinedInput label="Date Filter" />}
+                  >
+                    <MenuItem value="all">All Dates</MenuItem>
+                    <MenuItem value="today">Today</MenuItem>
+                    <MenuItem value="specific">Specific Date</MenuItem>
+                  </Select>
+                </StyledFormControl>
+              ) : (
+                <DatePicker
+                  label="Scheduled Date"
+                  value={filters.scheduledDate}
+                  onChange={(newValue) => handleFilterChange('scheduledDate', newValue)}
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      fullWidth: true,
+                      sx: {
+                        minWidth: 160,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          transition: 'all 0.3s ease',
+                          minHeight: 40,
+                          '&:hover': {
+                            transform: 'scale(1.02)',
+                          },
+                          '&.Mui-focused': {
+                            transform: 'scale(1.02)',
+                            boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                          },
                         },
-                        '&.Mui-focused': {
-                          transform: 'scale(1.02)',
-                          boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                        '& .MuiInputLabel-root': {
+                          fontWeight: 600,
+                          color: '#475569',
                         },
-                      },
-                      '& .MuiInputLabel-root': {
-                        fontWeight: 600,
-                        color: '#475569',
                       },
                     },
-                  },
-                }}
-              />
+                  }}
+                />
+              )}
             </Grow>
           </Grid>
+
+          {/* Specific Date Picker for Admin */}
+          {isAdmin && filters.scheduledDate && (
+            <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
+              <Grow in={true} timeout={800} style={{ transitionDelay: '150ms' }}>
+                <DatePicker
+                  label="Specific Date"
+                  value={filters.scheduledDate}
+                  onChange={(newValue) => handleFilterChange('scheduledDate', newValue)}
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      fullWidth: true,
+                      sx: {
+                        minWidth: 160,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          transition: 'all 0.3s ease',
+                          minHeight: 40,
+                          '&:hover': {
+                            transform: 'scale(1.02)',
+                          },
+                          '&.Mui-focused': {
+                            transform: 'scale(1.02)',
+                            boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontWeight: 600,
+                          color: '#475569',
+                        },
+                      },
+                    },
+                  }}
+                />
+              </Grow>
+            </Grid>
+          )}
 
           {/* Status Filter */}
           <Grid item xs={12} sm={6} md={4} lg={2} xl={2}>
@@ -653,6 +677,7 @@ export default function DailyTasksTable() {
                   <TableCell>Last Name</TableCell>
                   <TableCell>Lead Owner</TableCell>
                   <TableCell>Lead Date</TableCell>
+                  <TableCell>Missed Reason</TableCell>
                   <TableCell>Close Reason</TableCell>
                   <TableCell>Scheduler</TableCell>
                   <TableCell align="center">Actions</TableCell>
@@ -665,9 +690,11 @@ export default function DailyTasksTable() {
                     task={task}
                     onCloseTask={handleCloseTask}
                     onRescheduleTask={handleRescheduleTask}
+                    onReopenTask={handleReopenTask}
                     formatDate={formatDate}
                     closeReasonOptions={closeReasonOptions}
-                    isLoading={closeTaskMutation.isPending || rescheduleTaskMutation.isPending}
+                    isLoading={closeTaskMutation.isPending || rescheduleTaskMutation.isPending || reopenTaskMutation.isPending}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </TableBody>
@@ -704,18 +731,22 @@ interface TaskRowProps {
   task: DailyTaskWithDetails;
   onCloseTask: (taskId: string, closeReason: CloseReason) => void;
   onRescheduleTask: (taskId: string, newDate: string) => void;
+  onReopenTask: (taskId: string, notes?: string) => void;
   formatDate: (dateString: string | null) => string;
   closeReasonOptions: { value: CloseReason; label: string }[];
   isLoading: boolean;
+  isAdmin: boolean;
 }
 
 function TaskRow({ 
   task, 
   onCloseTask, 
   onRescheduleTask, 
+  onReopenTask,
   formatDate, 
   closeReasonOptions,
-  isLoading 
+  isLoading,
+  isAdmin
 }: TaskRowProps) {
   const [selectedCloseReason, setSelectedCloseReason] = useState<CloseReason | ''>('');
   const [rescheduleDate, setRescheduleDate] = useState<Dayjs | null>(null);
@@ -746,10 +777,39 @@ function TaskRow({
       </TableCell>
       <TableCell>{formatDate(task.lead?.created_at)}</TableCell>
       <TableCell>
-        {task.status === 'closed' && task.close_reason ? (
-          <Typography variant="body2" color="success.main">
-            {closeReasonOptions.find(opt => opt.value === task.close_reason)?.label || task.close_reason}
+        {task.missed_opportunity_reason ? (
+          <Typography variant="body2" sx={{ color: task.missed_opportunity_reason === 'Ringing' ? '#f59e0b' : '#3b82f6' }}>
+            {task.missed_opportunity_reason}
           </Typography>
+        ) : (
+          <Typography variant="body2" color="text.secondary">-</Typography>
+        )}
+      </TableCell>
+      <TableCell>
+        {task.status === 'closed' && task.close_reason ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="success.main">
+              {closeReasonOptions.find(opt => opt.value === task.close_reason)?.label || task.close_reason}
+            </Typography>
+            {isAdmin && (
+              <Tooltip title="Reopen Task">
+                <IconButton
+                  size="small"
+                  onClick={() => onReopenTask(task.id)}
+                  disabled={isLoading}
+                  sx={{ 
+                    color: '#f59e0b',
+                    '&:hover': {
+                      backgroundColor: '#fef3c7',
+                      color: '#d97706',
+                    }
+                  }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
         ) : (
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <Select
