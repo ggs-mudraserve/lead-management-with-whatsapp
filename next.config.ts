@@ -2,9 +2,9 @@ import type { NextConfig } from "next";
 const { withSentryConfig } = require("@sentry/nextjs");
 
 const nextConfig: NextConfig = {
-  // experimental: {
-  //   instrumentationHook: true, // Required for Sentry server-side init
-  // },
+  experimental: {
+    instrumentationHook: true, // Required for Sentry server-side init
+  },
   /* config options here */
 };
 

@@ -35,10 +35,12 @@ import EditIcon from '@mui/icons-material/Edit';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import NotesIcon from '@mui/icons-material/Notes';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import NotesDialog from './notes-dialog';
 import { useAuth } from '@/context/AuthContext';
 import {
   fetchDailyTasks,
@@ -240,6 +242,9 @@ export default function DailyTasksTable() {
   // State
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLeadName, setSelectedLeadName] = useState<string>('');
   const [filters, setFilters] = useState<Filters>({
     segments: [],
     ownerIds: [],
@@ -380,6 +385,18 @@ export default function DailyTasksTable() {
     setRowsPerPage(newRowsPerPage);
     setPage(0);
     setFilters(prev => ({ ...prev, rowsPerPage: newRowsPerPage, page: 0 }));
+  };
+
+  const handleOpenNotesDialog = (leadId: string, leadName: string) => {
+    setSelectedLeadId(leadId);
+    setSelectedLeadName(leadName);
+    setNotesDialogOpen(true);
+  };
+
+  const handleCloseNotesDialog = () => {
+    setNotesDialogOpen(false);
+    setSelectedLeadId(null);
+    setSelectedLeadName('');
   };
 
   // Helpers
@@ -680,6 +697,7 @@ export default function DailyTasksTable() {
                   <TableCell>Missed Reason</TableCell>
                   <TableCell>Close Reason</TableCell>
                   <TableCell>Scheduler</TableCell>
+                  <TableCell align="center">View Notes</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </StyledTableHead>
@@ -695,6 +713,7 @@ export default function DailyTasksTable() {
                     closeReasonOptions={closeReasonOptions}
                     isLoading={closeTaskMutation.isPending || rescheduleTaskMutation.isPending || reopenTaskMutation.isPending}
                     isAdmin={isAdmin}
+                    onOpenNotesDialog={handleOpenNotesDialog}
                   />
                 ))}
               </TableBody>
@@ -722,6 +741,16 @@ export default function DailyTasksTable() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Notes Dialog */}
+      {selectedLeadId && (
+        <NotesDialog
+          open={notesDialogOpen}
+          onClose={handleCloseNotesDialog}
+          leadId={selectedLeadId}
+          leadName={selectedLeadName}
+        />
+      )}
     </Box>
   );
 }
@@ -736,6 +765,7 @@ interface TaskRowProps {
   closeReasonOptions: { value: CloseReason; label: string }[];
   isLoading: boolean;
   isAdmin: boolean;
+  onOpenNotesDialog: (leadId: string, leadName: string) => void;
 }
 
 function TaskRow({ 
@@ -746,7 +776,8 @@ function TaskRow({
   formatDate, 
   closeReasonOptions,
   isLoading,
-  isAdmin
+  isAdmin,
+  onOpenNotesDialog
 }: TaskRowProps) {
   const [selectedCloseReason, setSelectedCloseReason] = useState<CloseReason | ''>('');
   const [rescheduleDate, setRescheduleDate] = useState<Dayjs | null>(null);
@@ -859,6 +890,19 @@ function TaskRow({
             Completed
           </Typography>
         )}
+      </TableCell>
+      <TableCell align="center">
+        <Tooltip title="View Notes">
+          <ModernIconButton 
+            size="small"
+            onClick={() => onOpenNotesDialog(
+              task.lead_id, 
+              `${task.lead?.first_name || ''} ${task.lead?.last_name || ''}`.trim() || 'Lead'
+            )}
+          >
+            <NotesIcon fontSize="small" />
+          </ModernIconButton>
+        </Tooltip>
       </TableCell>
       <TableCell align="center">
         <Tooltip title="View/Edit Lead">
