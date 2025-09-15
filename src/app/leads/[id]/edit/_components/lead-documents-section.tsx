@@ -678,58 +678,44 @@ export function LeadDocumentsSection({ leadId }: LeadDocumentsSectionProps) {
             const zip = new JSZip();
             const promises: Promise<void>[] = [];
 
-            // Create a folder for each document type
-            const documentsByFolder = new Map<string, LeadDocumentMetadata[]>();
+            // Process each document directly without creating folders
+            for (const doc of validatedDocuments) {
+                const promise = (async () => {
+                    try {
+                        // Get signed URL for the document
+                        const { data, error: urlError } = await supabase.storage
+                            .from(BUCKET_NAME)
+                            .createSignedUrl(doc.storage_object_path, 60);
 
-            // Group documents by type
-            validatedDocuments.forEach(doc => {
-                const list = documentsByFolder.get(doc.document_type) || [];
-                list.push(doc);
-                documentsByFolder.set(doc.document_type, list);
-            });
-
-            // Process each document
-            for (const [folderName, docs] of documentsByFolder.entries()) {
-                const folder = zip.folder(folderName);
-                if (!folder) continue;
-
-                for (const doc of docs) {
-                    const promise = (async () => {
-                        try {
-                            // Get signed URL for the document
-                            const { data, error: urlError } = await supabase.storage
-                                .from(BUCKET_NAME)
-                                .createSignedUrl(doc.storage_object_path, 60);
-
-                            if (urlError) {
-                                console.error(`Error getting signed URL for ${doc.file_name}:`, urlError);
-                                return;
-                            }
-
-                            if (!data?.signedUrl) {
-                                console.error(`No signed URL returned for ${doc.file_name}`);
-                                return;
-                            }
-
-                            // Fetch the file content
-                            const response = await fetch(data.signedUrl);
-                            if (!response.ok) {
-                                console.error(`Failed to fetch ${doc.file_name}: ${response.statusText}`);
-                                return;
-                            }
-
-                            const blob = await response.blob();
-
-                            // Add file to the zip folder
-                            const fileName = doc.file_name || `document_${doc.id.substring(0, 6)}`;
-                            folder.file(fileName, blob);
-                        } catch (err) {
-                            console.error(`Error processing ${doc.file_name}:`, err);
+                        if (urlError) {
+                            console.error(`Error getting signed URL for ${doc.file_name}:`, urlError);
+                            return;
                         }
-                    })();
 
-                    promises.push(promise);
-                }
+                        if (!data?.signedUrl) {
+                            console.error(`No signed URL returned for ${doc.file_name}`);
+                            return;
+                        }
+
+                        // Fetch the file content
+                        const response = await fetch(data.signedUrl);
+                        if (!response.ok) {
+                            console.error(`Failed to fetch ${doc.file_name}: ${response.statusText}`);
+                            return;
+                        }
+
+                        const blob = await response.blob();
+
+                        // Add file directly to the zip root with document type prefix to avoid conflicts
+                        const fileName = doc.file_name || `document_${doc.id.substring(0, 6)}`;
+                        const uniqueFileName = `${doc.document_type}_${fileName}`;
+                        zip.file(uniqueFileName, blob);
+                    } catch (err) {
+                        console.error(`Error processing ${doc.file_name}:`, err);
+                    }
+                })();
+
+                promises.push(promise);
             }
 
             // Wait for all promises to resolve
